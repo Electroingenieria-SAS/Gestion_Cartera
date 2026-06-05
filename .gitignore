@@ -1,0 +1,14 @@
+# Dependencias (Vercel las instala solo, NO se suben a GitHub)
+/node_modules
+
+# Build de Next.js
+/.next
+/out
+
+# Variables de entorno (¡NUNCA subir claves a GitHub!)
+.env
+.env*.local
+
+# Sistema
+.DS_Store
+*.log
