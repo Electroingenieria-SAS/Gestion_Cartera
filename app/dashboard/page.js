@@ -1,144 +1,98 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Link from "next/link";
+import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
+import { millones, num, pct } from "../../lib/format";
 
-// Etiquetas legibles para cada rol.
-const ROLES = {
-  auxiliar: "Auxiliar de cartera",
-  supervisor: "Supervisor",
-  consulta: "Consulta",
-};
-
-// Menú lateral. Por ahora solo el Dashboard está activo;
-// los demás se irán activando fase por fase.
-const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "▣", active: true },
-  { id: "cartera", label: "Cartera", icon: "▤", active: false },
-  { id: "clientes", label: "Clientes", icon: "◍", active: false },
-  { id: "gestiones", label: "Gestiones", icon: "✎", active: false },
-  { id: "acuerdos", label: "Acuerdos", icon: "✓", active: false },
-  { id: "alertas", label: "Alertas", icon: "◔", active: false },
-];
-
-const kpis = [
-  { label: "Cartera Total", value: "$3.713 M", delta: "vista previa", up: true, pct: 100, color: "var(--azul)" },
-  { label: "Cartera Vencida", value: "$1.509 M", delta: "40,7% del total", up: false, pct: 41, color: "var(--rojo)" },
-  { label: "Clientes Totales", value: "135", delta: "8 vendedores", up: true, pct: 70, color: "var(--azul)" },
-  { label: "Clientes en Riesgo", value: "41", delta: "Mora +90 días", up: false, pct: 30, color: "var(--amarillo)" },
-];
+// Color del semáforo según el % de mora.
+function colorMora(p) {
+  if (p > 40) return "var(--rojo)";
+  if (p >= 20) return "var(--amarillo)";
+  return "var(--verde)";
+}
 
 export default function Dashboard() {
-  const router = useRouter();
   const [cargando, setCargando] = useState(true);
-  const [perfil, setPerfil] = useState(null);
+  const [carga, setCarga] = useState(null);
+  const [previa, setPrevia] = useState(null);
 
   useEffect(() => {
-    let activo = true;
-
-    async function verificar() {
-      // 1. ¿Hay sesión iniciada?
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace("/login");
-        return;
-      }
-      // 2. Traemos el perfil (nombre y rol) del usuario.
+    async function traer() {
+      // Traemos las 2 cargas más recientes: la actual y la anterior (para la variación).
       const { data } = await supabase
-        .from("profiles")
-        .select("nombre, rol")
-        .eq("id", session.user.id)
-        .single();
-
-      if (activo) {
-        setPerfil({
-          nombre: data?.nombre || session.user.email,
-          rol: data?.rol || "consulta",
-          email: session.user.email,
-        });
-        setCargando(false);
+        .from("cargas")
+        .select("*")
+        .order("fecha_carga", { ascending: false })
+        .limit(2);
+      if (data && data.length) {
+        setCarga(data[0]);
+        setPrevia(data[1] || null);
       }
+      setCargando(false);
     }
+    traer();
+  }, []);
 
-    verificar();
-    return () => { activo = false; };
-  }, [router]);
-
-  async function salir() {
-    await supabase.auth.signOut();
-    router.replace("/login");
-  }
+  let contenido;
 
   if (cargando) {
-    return <div className="loading">Cargando…</div>;
+    contenido = <p className="muted">Cargando indicadores…</p>;
+  } else if (!carga) {
+    contenido = (
+      <div className="empty">
+        <div className="empty-ico">▤</div>
+        <h2>Aún no has cargado cartera</h2>
+        <p>Sube tu archivo de Siesa para ver tus indicadores reales.</p>
+        <Link href="/cargar" className="btn btn-primary">Subir archivo de Siesa</Link>
+      </div>
+    );
+  } else {
+    const c = carga;
+    const dt =
+      previa && previa.cartera_total
+        ? ((c.cartera_total - previa.cartera_total) / previa.cartera_total) * 100
+        : null;
+    const deltaTotal =
+      dt === null
+        ? "primera carga"
+        : (dt >= 0 ? "+" : "") + dt.toFixed(1).replace(".", ",") + "% vs anterior";
+
+    const kpis = [
+      { label: "Cartera Total", value: millones(c.cartera_total), sub: deltaTotal, color: "var(--azul)", barra: 100 },
+      { label: "Cartera Vigente", value: millones(c.cartera_vigente), sub: pct((c.cartera_vigente / c.cartera_total) * 100) + " del total", color: "var(--verde)", barra: (c.cartera_vigente / c.cartera_total) * 100 },
+      { label: "Cartera Vencida", value: millones(c.cartera_vencida), sub: pct(c.pct_vencida) + " del total", color: "var(--rojo)", barra: c.pct_vencida },
+      { label: "% Cartera Vencida", value: pct(c.pct_vencida), sub: c.pct_vencida > 40 ? "Crítico" : c.pct_vencida >= 20 ? "Atención" : "Normal", color: colorMora(c.pct_vencida), barra: c.pct_vencida },
+      { label: "Clientes Totales", value: num(c.clientes_totales), sub: num(c.total_documentos) + " documentos", color: "var(--azul)", barra: 100 },
+      { label: "Clientes con Mora", value: num(c.clientes_mora), sub: pct((c.clientes_mora / c.clientes_totales) * 100) + " de clientes", color: "var(--amarillo)", barra: (c.clientes_mora / c.clientes_totales) * 100 },
+      { label: "Clientes en Riesgo", value: num(c.clientes_riesgo), sub: "Mora +90 días", color: "var(--rojo)", barra: (c.clientes_riesgo / c.clientes_totales) * 100 },
+      { label: "Acuerdos Pendientes", value: "—", sub: "Próximamente", color: "var(--texto-suave)", barra: 0 },
+    ];
+
+    contenido = (
+      <>
+        <div className="kpi-grid kpi-8">
+          {kpis.map((k) => (
+            <div className="kpi" key={k.label}>
+              <div className="label">{k.label}</div>
+              <div className="value" style={{ color: k.color === "var(--texto-suave)" ? "var(--texto-suave)" : "var(--azul)" }}>{k.value}</div>
+              <div className="delta" style={{ color: "var(--texto-suave)" }}>{k.sub}</div>
+              <div className="bar"><i style={{ width: `${Math.min(100, Math.max(0, k.barra))}%`, background: k.color }} /></div>
+            </div>
+          ))}
+        </div>
+        <p className="muted" style={{ marginTop: 18 }}>
+          Datos de la carga: {new Date(c.fecha_carga).toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" })}
+          {c.nombre_archivo ? ` · ${c.nombre_archivo}` : ""}
+        </p>
+      </>
+    );
   }
 
-  const iniciales = (perfil.nombre || "U")
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   return (
-    <div className="app-shell">
-      {/* Menú lateral */}
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <Image src="/simbolo-ei.png" alt="ei" width={34} height={49} />
-          <span>Cartera</span>
-        </div>
-        <nav>
-          {NAV.map((item) => (
-            <a key={item.id} className={`nav-item ${item.active ? "on" : "off"}`}>
-              <span className="nav-ico">{item.icon}</span>
-              {item.label}
-              {!item.active && <span className="nav-soon">pronto</span>}
-            </a>
-          ))}
-        </nav>
-      </aside>
-
-      {/* Área principal */}
-      <div className="main">
-        <header className="app-top">
-          <div>
-            <h1 className="app-title">Dashboard</h1>
-            <p className="app-date">Bienvenido de nuevo</p>
-          </div>
-          <div className="user-chip">
-            <div className="avatar">{iniciales}</div>
-            <div className="user-meta">
-              <strong>{perfil.nombre}</strong>
-              <span>{ROLES[perfil.rol] || perfil.rol}</span>
-            </div>
-            <button className="logout" onClick={salir} title="Cerrar sesión">Salir</button>
-          </div>
-        </header>
-
-        <div className="app-body">
-          <div className="kpi-grid">
-            {kpis.map((k) => (
-              <div className="kpi" key={k.label}>
-                <div className="label">{k.label}</div>
-                <div className="value">{k.value}</div>
-                <div className={`delta ${k.up ? "up" : "down"}`}>{k.delta}</div>
-                <div className="bar"><i style={{ width: `${k.pct}%`, background: k.color }} /></div>
-              </div>
-            ))}
-          </div>
-
-          <div className="notice">
-            <strong>✅ Login y roles funcionando.</strong>
-            <p>
-              Los datos que ves son una vista previa. En la <b>Fase 3</b> conectaremos la base de
-              datos y la carga del archivo de Siesa para que estos números sean reales.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AppShell active="dashboard" titulo="Dashboard" subtitulo="Indicadores de cartera">
+      {contenido}
+    </AppShell>
   );
 }
