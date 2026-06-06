@@ -84,6 +84,12 @@ export default function PlanDiario() {
         <div className="panel" style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
           <div className="tabla-wrap">
             <table className="data">
+              <colgroup>
+                <col style={{ width: "4%" }} /><col style={{ width: "27%" }} />
+                <col style={{ width: "15%" }} /><col style={{ width: "8%" }} />
+                <col style={{ width: "13%" }} /><col style={{ width: "8%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "13%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>#</th><th>Cliente</th>

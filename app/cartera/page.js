@@ -88,6 +88,13 @@ export default function Cartera() {
         <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
           <div className="tabla-wrap">
             <table className="data">
+              <colgroup>
+                <col style={{ width: "9%" }} /><col style={{ width: "20%" }} />
+                <col style={{ width: "11%" }} /><col style={{ width: "16%" }} />
+                <col style={{ width: "9%" }} /><col style={{ width: "10%" }} />
+                <col style={{ width: "6%" }} /><col style={{ width: "9%" }} />
+                <col style={{ width: "10%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>NIT</th><th>Cliente</th><th>Ciudad</th><th>Vendedor</th>

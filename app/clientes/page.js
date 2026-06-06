@@ -56,6 +56,11 @@ export default function Clientes() {
         <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
           <div className="tabla-wrap">
             <table className="data">
+              <colgroup>
+                <col style={{ width: "30%" }} /><col style={{ width: "16%" }} />
+                <col style={{ width: "22%" }} /><col style={{ width: "14%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "6%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Cliente</th><th>Ciudad</th><th>Vendedor</th>

@@ -179,6 +179,12 @@ export default function Dashboard() {
           <h3>Top 20 clientes críticos</h3>
           <div className="tabla-wrap">
             <table className="data">
+              <colgroup>
+                <col style={{ width: "5%" }} /><col style={{ width: "29%" }} />
+                <col style={{ width: "14%" }} /><col style={{ width: "20%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "12%" }} />
+                <col style={{ width: "8%" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>#</th><th>Cliente</th><th>Ciudad</th><th>Vendedor</th>
