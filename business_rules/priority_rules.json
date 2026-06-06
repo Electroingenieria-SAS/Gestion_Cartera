@@ -1,0 +1,15 @@
+{
+  "_comentario": "Reglas del Score de priorizacion. Cambia estos numeros para ajustar la estrategia de cobro SIN tocar el codigo. 'pesos' debe sumar 100. 'topes' es el valor a partir del cual un factor cuenta como 100/100.",
+  "pesos": {
+    "dias_mora": 40,
+    "valor_adeudado": 30,
+    "dias_sin_gestion": 20,
+    "promesas_incumplidas": 10
+  },
+  "topes": {
+    "dias_mora": 365,
+    "valor_adeudado": 250000000,
+    "dias_sin_gestion": 30,
+    "promesas_incumplidas": 3
+  }
+}

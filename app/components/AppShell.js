@@ -16,9 +16,9 @@ const ROLES = {
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "▣", href: "/dashboard" },
   { id: "cargar", label: "Cargar archivo", icon: "⬆", href: "/cargar" },
+  { id: "plan", label: "Plan diario", icon: "◎", href: "/plan" },
   { id: "cartera", label: "Cartera", icon: "▤", href: "/cartera" },
-  { id: "clientes", label: "Clientes", icon: "◍", href: null },
-  { id: "gestiones", label: "Gestiones", icon: "✎", href: null },
+  { id: "clientes", label: "Clientes", icon: "◍", href: "/clientes" },
   { id: "acuerdos", label: "Acuerdos", icon: "✓", href: null },
   { id: "alertas", label: "Alertas", icon: "◔", href: null },
 ];
