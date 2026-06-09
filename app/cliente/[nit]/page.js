@@ -6,6 +6,7 @@ import Link from "next/link";
 import AppShell from "../../components/AppShell";
 import { supabase } from "../../../lib/supabase";
 import { getResumenCliente } from "../../../lib/cartera";
+import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos } from "../../../lib/format";
 
 const TIPOS = ["Llamada", "WhatsApp", "Correo", "Visita"];
@@ -17,6 +18,7 @@ export default function FichaCliente() {
   const [resumen, setResumen] = useState(null);
   const [contacto, setContacto] = useState({ telefono: "", correo: "" });
   const [historial, setHistorial] = useState([]);
+  const [pred, setPred] = useState(null);
   const [usuario, setUsuario] = useState({ id: null, nombre: "", rol: "consulta" });
   const soloLectura = usuario.rol === "consulta";
 
@@ -36,6 +38,19 @@ export default function FichaCliente() {
     if (cli) setContacto({ telefono: cli.telefono || "", correo: cli.correo || "" });
     const { data: hist } = await supabase.from("gestiones").select("*").eq("cliente_nit", nit).order("fecha", { ascending: false });
     setHistorial(hist || []);
+
+    // Predicción de pago.
+    const { data: acu } = await supabase.from("acuerdos_pago").select("estado").eq("cliente_nit", nit);
+    const cumplidos = (acu || []).filter((a) => a.estado === "Cumplido").length;
+    const incumplidos = (acu || []).filter((a) => a.estado === "Incumplido").length;
+    const ultimaFecha = hist && hist[0] ? hist[0].fecha : null;
+    const gestionReciente = ultimaFecha ? (Date.now() - new Date(ultimaFecha)) / 86400000 <= 30 : false;
+    if (r && r.saldo > 0) {
+      setPred(calcularProbabilidad({ diasMora: r.dias, pctVencida: r.vencida / r.saldo, cumplidos, incumplidos, gestionReciente }));
+    } else {
+      setPred(null);
+    }
+
     setEstado("ok");
   }
 
@@ -144,6 +159,19 @@ export default function FichaCliente() {
           )}
         </div>
       </div>
+
+      {pred && (
+        <div className="panel pred-panel" style={{ marginTop: 18 }}>
+          <div>
+            <h3 style={{ marginBottom: 4 }}>Predicción de pago (IA)</h3>
+            <p className="muted">{pred.recomendacion}</p>
+          </div>
+          <div className="pred-num">
+            <span className="pred-pct" style={{ color: pred.color }}>{pred.prob}%</span>
+            <span className="pill" style={{ background: pred.color + "22", color: pred.color }}>Riesgo {pred.nivel}</span>
+          </div>
+        </div>
+      )}
 
       {/* Formulario de gestión (solo auxiliar/supervisor) */}
       {soloLectura ? (
