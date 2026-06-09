@@ -84,7 +84,7 @@ export default function Home() {
                 <div className="ico">{m.ico}</div>
                 <h3>{m.t}</h3>
                 <p>{m.d}</p>
-                <span className="soon">Próximamente</span>
+                <span className="soon"></span>
               </div>
             ))}
           </div>
