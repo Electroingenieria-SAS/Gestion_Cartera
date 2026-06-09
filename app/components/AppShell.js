@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "../../lib/supabase";
+import { getAlertas } from "../../lib/alertas";
 
 const ROLES = {
   auxiliar: "Auxiliar de cartera",
@@ -19,8 +20,8 @@ const NAV = [
   { id: "plan", label: "Plan diario", icon: "◎", href: "/plan" },
   { id: "cartera", label: "Cartera", icon: "▤", href: "/cartera" },
   { id: "clientes", label: "Clientes", icon: "◍", href: "/clientes" },
-  { id: "acuerdos", label: "Acuerdos", icon: "✓", href: null },
-  { id: "alertas", label: "Alertas", icon: "◔", href: null },
+  { id: "acuerdos", label: "Acuerdos", icon: "✓", href: "/acuerdos" },
+  { id: "alertas", label: "Alertas", icon: "◔", href: "/alertas" },
 ];
 
 // Estructura común (menú + barra superior) para todas las páginas internas.
@@ -29,6 +30,7 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
   const router = useRouter();
   const [cargando, setCargando] = useState(true);
   const [perfil, setPerfil] = useState(null);
+  const [alertas, setAlertas] = useState(0);
 
   useEffect(() => {
     let activo = true;
@@ -54,6 +56,13 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
     verificar();
     return () => { activo = false; };
   }, [router]);
+
+  // Conteo de alertas para la campana (no bloquea el render).
+  useEffect(() => {
+    let activo = true;
+    getAlertas().then((a) => { if (activo) setAlertas(a.length); }).catch(() => {});
+    return () => { activo = false; };
+  }, []);
 
   async function salir() {
     await supabase.auth.signOut();
@@ -94,13 +103,22 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
             <h1 className="app-title">{titulo}</h1>
             <p className="app-date">{subtitulo}</p>
           </div>
-          <div className="user-chip">
-            <div className="avatar">{iniciales}</div>
-            <div className="user-meta">
-              <strong>{perfil.nombre}</strong>
-              <span>{ROLES[perfil.rol] || perfil.rol}</span>
+          <div className="top-right">
+            <Link href="/alertas" className="bell" aria-label="Alertas">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {alertas > 0 && <span className="bell-count">{alertas > 99 ? "99+" : alertas}</span>}
+            </Link>
+            <div className="user-chip">
+              <div className="avatar">{iniciales}</div>
+              <div className="user-meta">
+                <strong>{perfil.nombre}</strong>
+                <span>{ROLES[perfil.rol] || perfil.rol}</span>
+              </div>
+              <button className="logout" onClick={salir} title="Cerrar sesión">Salir</button>
             </div>
-            <button className="logout" onClick={salir} title="Cerrar sesión">Salir</button>
           </div>
         </header>
         <div className="app-body">{children}</div>

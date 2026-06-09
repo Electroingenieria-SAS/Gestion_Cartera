@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { getCargaActual, getTendencia } from "../../lib/cartera";
+import { getAlertas } from "../../lib/alertas";
+import { supabase } from "../../lib/supabase";
 import { millones, num, pct, pesos } from "../../lib/format";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -35,6 +37,8 @@ export default function Dashboard() {
   const [top, setTop] = useState([]);
   const [tend, setTend] = useState([]);
   const [mounted, setMounted] = useState(false);
+  const [acuPend, setAcuPend] = useState(0);
+  const [numAlertas, setNumAlertas] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -80,6 +84,10 @@ export default function Dashboard() {
       }
       setTop(Object.values(cMap).sort((a, b) => b.vencido - a.vencido).slice(0, 20));
 
+      const { count } = await supabase.from("acuerdos_pago").select("*", { count: "exact", head: true }).eq("estado", "Pendiente");
+      setAcuPend(count || 0);
+      getAlertas().then((a) => setNumAlertas(a.length)).catch(() => {});
+
       setEstado("ok");
     })();
   }, []);
@@ -111,11 +119,17 @@ export default function Dashboard() {
       { label: "Clientes Totales", value: num(c.clientes_totales), sub: num(c.total_documentos) + " documentos", color: "var(--azul)", barra: 100 },
       { label: "Clientes con Mora", value: num(c.clientes_mora), sub: pct((c.clientes_mora / c.clientes_totales) * 100) + " de clientes", color: "var(--amarillo)", barra: (c.clientes_mora / c.clientes_totales) * 100 },
       { label: "Clientes en Riesgo", value: num(c.clientes_riesgo), sub: "Mora +90 días", color: "var(--rojo)", barra: (c.clientes_riesgo / c.clientes_totales) * 100 },
-      { label: "Acuerdos Pendientes", value: "—", sub: "Próximamente", color: "var(--texto-suave)", barra: 0 },
+      { label: "Acuerdos Pendientes", value: num(acuPend), sub: acuPend ? "Compromisos activos" : "Sin acuerdos aún", color: "var(--azul)", barra: acuPend ? 100 : 0 },
     ];
 
     contenido = (
       <>
+        {numAlertas > 0 && (
+          <Link href="/alertas" className="alert-banner">
+            <span>🔔 Tienes <b>{numAlertas}</b> alertas que requieren atención</span>
+            <span className="alert-banner-cta">Ver alertas →</span>
+          </Link>
+        )}
         <div className="kpi-grid kpi-8">
           {kpis.map((k) => (
             <div className="kpi" key={k.label}>
