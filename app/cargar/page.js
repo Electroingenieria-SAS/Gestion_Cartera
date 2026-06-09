@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
+import { getPerfil, esSoloLectura } from "../../lib/auth";
 import { millones, num, pct } from "../../lib/format";
 
 const COLUMNAS_REQUERIDAS = [
@@ -20,6 +21,11 @@ export default function Cargar() {
   const [estado, setEstado] = useState("idle");
   const [mensaje, setMensaje] = useState("");
   const [resumen, setResumen] = useState(null);
+  const [soloLectura, setSoloLectura] = useState(false);
+
+  useEffect(() => {
+    getPerfil().then((p) => setSoloLectura(esSoloLectura(p?.rol))).catch(() => {});
+  }, []);
 
   function elegir(e) {
     const f = e.target.files?.[0];
@@ -32,7 +38,7 @@ export default function Cargar() {
   }
 
   async function procesar() {
-    if (!archivo) return;
+    if (!archivo || soloLectura) return;
     try {
       setEstado("procesando");
       setMensaje("Leyendo el archivo…");
@@ -157,6 +163,9 @@ export default function Cargar() {
 
   return (
     <AppShell active="cargar" titulo="Cargar archivo de Siesa" subtitulo="Sube el Excel diario de cartera">
+      {soloLectura && (
+        <div className="lectura-aviso">Tu rol es de <b>consulta</b> (solo lectura). No puedes cargar cartera.</div>
+      )}
       <div className="upload-card">
         <div className="upload-step">
           <span className="step-n">1</span>
@@ -175,7 +184,7 @@ export default function Cargar() {
           <div style={{ flex: 1 }}>
             <strong>Procesar y guardar</strong>
             <p className="muted">El sistema lee el archivo, calcula los indicadores y guarda la carga del día.</p>
-            <button className="btn btn-primary" onClick={procesar} disabled={!archivo || estado === "procesando"}>
+            <button className="btn btn-primary" onClick={procesar} disabled={!archivo || estado === "procesando" || soloLectura}>
               {estado === "procesando" ? "Procesando…" : "Procesar archivo"}
             </button>
           </div>

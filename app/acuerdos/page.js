@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
+import { getPerfil, esSoloLectura } from "../../lib/auth";
 import { pesos, num } from "../../lib/format";
 
 const ESTADO_COLOR = {
@@ -15,6 +16,11 @@ export default function Acuerdos() {
   const [estado, setEstado] = useState("cargando");
   const [acuerdos, setAcuerdos] = useState([]);
   const [filtro, setFiltro] = useState("Pendiente");
+  const [soloLectura, setSoloLectura] = useState(false);
+
+  useEffect(() => {
+    getPerfil().then((p) => setSoloLectura(esSoloLectura(p?.rol))).catch(() => {});
+  }, []);
 
   async function cargar() {
     const { data: acu } = await supabase.from("acuerdos_pago").select("*").order("fecha_compromiso", { ascending: true });
@@ -32,6 +38,7 @@ export default function Acuerdos() {
   useEffect(() => { cargar(); }, []);
 
   async function cambiarEstado(id, nuevo) {
+    if (soloLectura) return;
     await supabase.from("acuerdos_pago").update({ estado: nuevo }).eq("id", id);
     await cargar();
   }
@@ -81,7 +88,9 @@ export default function Acuerdos() {
                     <td style={{ textAlign: "right", fontWeight: 700 }}>{pesos(a.valor_comprometido)}</td>
                     <td><span className="pill" style={{ background: ESTADO_COLOR[a.estado] + "22", color: ESTADO_COLOR[a.estado] }}>{a.estado}</span></td>
                     <td>
-                      {a.estado === "Pendiente" ? (
+                      {soloLectura ? (
+                        <span className="muted">—</span>
+                      ) : a.estado === "Pendiente" ? (
                         <div className="acu-acciones">
                           <button onClick={() => cambiarEstado(a.id, "Cumplido")} className="chip-ok">Cumplido</button>
                           <button onClick={() => cambiarEstado(a.id, "Incumplido")} className="chip-no">Incumplido</button>

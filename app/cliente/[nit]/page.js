@@ -17,7 +17,8 @@ export default function FichaCliente() {
   const [resumen, setResumen] = useState(null);
   const [contacto, setContacto] = useState({ telefono: "", correo: "" });
   const [historial, setHistorial] = useState([]);
-  const [usuario, setUsuario] = useState({ id: null, nombre: "" });
+  const [usuario, setUsuario] = useState({ id: null, nombre: "", rol: "consulta" });
+  const soloLectura = usuario.rol === "consulta";
 
   // Formulario de gestión
   const [tipo, setTipo] = useState("Llamada");
@@ -42,19 +43,21 @@ export default function FichaCliente() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: p } = await supabase.from("profiles").select("nombre").eq("id", session.user.id).single();
-        setUsuario({ id: session.user.id, nombre: p?.nombre || session.user.email });
+        const { data: p } = await supabase.from("profiles").select("nombre, rol").eq("id", session.user.id).single();
+        setUsuario({ id: session.user.id, nombre: p?.nombre || session.user.email, rol: p?.rol || "consulta" });
       }
       await cargarTodo();
     })();
   }, [nit]);
 
   async function guardarContacto() {
+    if (soloLectura) return;
     await supabase.from("clientes").update({ telefono: contacto.telefono, correo: contacto.correo }).eq("nit", nit);
     setAviso({ tipo: "ok", txt: "Contacto guardado." });
   }
 
   async function guardarGestion() {
+    if (soloLectura) return;
     setAviso(null);
     if (obs.trim().length < 20) {
       setAviso({ tipo: "error", txt: "La observación debe tener al menos 20 caracteres." });
@@ -108,13 +111,22 @@ export default function FichaCliente() {
           <div className="dato"><span>Ciudad</span><b>{resumen?.ciudad || "—"}</b></div>
           <div className="dato"><span>Vendedor</span><b>{resumen?.vendedor || "—"}</b></div>
           <div className="contacto-edit">
-            <label className="field"><span>Teléfono</span>
-              <input value={contacto.telefono} onChange={(e) => setContacto({ ...contacto, telefono: e.target.value })} placeholder="Agregar teléfono" />
-            </label>
-            <label className="field"><span>Correo</span>
-              <input value={contacto.correo} onChange={(e) => setContacto({ ...contacto, correo: e.target.value })} placeholder="Agregar correo" />
-            </label>
-            <button className="btn-ghost-light" onClick={guardarContacto}>Guardar contacto</button>
+            {soloLectura ? (
+              <>
+                <div className="dato"><span>Teléfono</span><b>{contacto.telefono || "—"}</b></div>
+                <div className="dato"><span>Correo</span><b>{contacto.correo || "—"}</b></div>
+              </>
+            ) : (
+              <>
+                <label className="field"><span>Teléfono</span>
+                  <input value={contacto.telefono} onChange={(e) => setContacto({ ...contacto, telefono: e.target.value })} placeholder="Agregar teléfono" />
+                </label>
+                <label className="field"><span>Correo</span>
+                  <input value={contacto.correo} onChange={(e) => setContacto({ ...contacto, correo: e.target.value })} placeholder="Agregar correo" />
+                </label>
+                <button className="btn-ghost-light" onClick={guardarContacto}>Guardar contacto</button>
+              </>
+            )}
           </div>
         </div>
 
@@ -133,7 +145,10 @@ export default function FichaCliente() {
         </div>
       </div>
 
-      {/* Formulario de gestión */}
+      {/* Formulario de gestión (solo auxiliar/supervisor) */}
+      {soloLectura ? (
+        <div className="lectura-aviso" style={{ marginTop: 18 }}>Tu rol es de <b>consulta</b> (solo lectura). Puedes ver el historial, pero no registrar gestiones.</div>
+      ) : (
       <div className="panel" style={{ marginTop: 18 }}>
         <h3>Registrar gestión</h3>
         <div className="form-gestion">
@@ -168,6 +183,7 @@ export default function FichaCliente() {
           {guardando ? "Guardando…" : "Guardar gestión"}
         </button>
       </div>
+      )}
 
       {/* Historial */}
       <div className="panel" style={{ marginTop: 18 }}>
