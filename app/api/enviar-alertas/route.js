@@ -61,8 +61,17 @@ export async function GET() {
     const f = new Date(a.fecha_compromiso + "T00:00:00");
     const diff = Math.floor((hoy - f) / MS_DIA);
     const nombre = cli[a.cliente_nit]?.nombre || a.cliente_nit;
-    if (diff === 0) alertas.push({ nivel: "critica", tipo: "Promesa vence hoy", nombre, detalle: `Compromiso de ${fmt(a.valor_comprometido)}` });
-    else if (diff > 3) alertas.push({ nivel: "critica", tipo: "Promesa vencida", nombre, detalle: `${fmt(a.valor_comprometido)} · venció hace ${diff} días` });
+    const monto = fmt(a.valor_comprometido);
+    if (diff < 0 && diff >= -2) {
+      const faltan = -diff;
+      alertas.push({ nivel: "alta", tipo: "Promesa por vencer", nombre, detalle: `${monto} · vence ${faltan === 1 ? "mañana" : "en " + faltan + " días"}` });
+    } else if (diff === 0) {
+      alertas.push({ nivel: "critica", tipo: "Promesa vence hoy", nombre, detalle: `Compromiso de ${monto}` });
+    } else if (diff >= 1 && diff <= 3) {
+      alertas.push({ nivel: "alta", tipo: "Promesa vencida", nombre, detalle: `${monto} · venció hace ${diff} día${diff > 1 ? "s" : ""}` });
+    } else if (diff > 3) {
+      alertas.push({ nivel: "critica", tipo: "Promesa muy vencida", nombre, detalle: `${monto} · venció hace ${diff} días` });
+    }
   }
   for (const c of Object.values(cli)) {
     if (c.dias > 90) alertas.push({ nivel: "critica", tipo: "Mora +90 días", nombre: c.nombre, detalle: `${c.dias} días · ${fmt(c.vencido)} vencido` });
