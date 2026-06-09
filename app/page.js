@@ -18,7 +18,7 @@ const modulos = [
   { ico: "3", t: "Plan diario priorizado", d: "Score de riesgo que ordena a quién cobrar primero según mora, valor y promesas incumplidas." },
   { ico: "4", t: "Gestión de cobranzas", d: "Ficha por cliente con historial completo de llamadas, correos, visitas y compromisos de pago." },
   { ico: "5", t: "Acuerdos y alertas", d: "Registro de promesas de pago y alertas automáticas al dashboard y al correo electrónico." },
-  { ico: "6", t: "IA predictiva (Fase 2)", d: "Modelo que estima la probabilidad de pago de cada cliente y recomienda la mejor acción." },
+  { ico: "6", t: "IA predictiva", d: "Modelo que estima la probabilidad de pago de cada cliente y recomienda la mejor acción." },
 ];
 
 export default function Home() {
