@@ -37,7 +37,7 @@ export default function Home() {
       {/* Hero */}
       <section className="hero">
         <div className="container">
-          <span className="eyebrow">Plataforma SaaS de cobranzas</span>
+          <span className="eyebrow"></span>
           <h1>
             De un Excel diario a una <span>plataforma inteligente</span> de cartera
           </h1>
