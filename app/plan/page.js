@@ -76,7 +76,7 @@ export default function PlanDiario() {
           <b>¿Cómo se calcula el Score?</b> Combina 4 factores, cada uno llevado a una escala de 0 a 100 y luego
           ponderado: <b>40%</b> días de mora · <b>30%</b> valor adeudado · <b>20%</b> días sin gestión ·
           <b> 10%</b> promesas incumplidas. Prioridad: Crítica ≥66 · Alta 40–65 · Media 20–39 · Baja &lt;20.
-          Los pesos son configurables en <code>business_rules/priority_rules.json</code>.
+          
         </div>
         <div className="filtros" style={{ marginTop: 14 }}>
           <button className="btn-ghost-light" onClick={() => setVerTodos(!verTodos)}>
