@@ -13,7 +13,7 @@ const ROLES = {
   consulta: "Consulta",
 };
 
-// Menú lateral. Los que tienen "href" ya están activos.
+// Menú lateral. "soloSupervisor" se muestra únicamente a supervisores.
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "▣", href: "/dashboard" },
   { id: "cargar", label: "Cargar archivo", icon: "⬆", href: "/cargar" },
@@ -23,10 +23,10 @@ const NAV = [
   { id: "clientes", label: "Clientes", icon: "◍", href: "/clientes" },
   { id: "acuerdos", label: "Acuerdos", icon: "✓", href: "/acuerdos" },
   { id: "alertas", label: "Alertas", icon: "◔", href: "/alertas" },
+  { id: "auditoria", label: "Auditoría", icon: "❑", href: "/auditoria", soloSupervisor: true },
 ];
 
 // Estructura común (menú + barra superior) para todas las páginas internas.
-// Verifica que el usuario tenga sesión; si no, lo manda al login.
 export default function AppShell({ active, titulo, subtitulo, children }) {
   const router = useRouter();
   const [cargando, setCargando] = useState(true);
@@ -75,6 +75,8 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
   const iniciales = (perfil.nombre || "U")
     .split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
+  const navVisible = NAV.filter((item) => !item.soloSupervisor || perfil.rol === "supervisor");
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -83,7 +85,7 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
           <span>Cartera</span>
         </div>
         <nav>
-          {NAV.map((item) =>
+          {navVisible.map((item) =>
             item.href ? (
               <Link key={item.id} href={item.href} className={`nav-item ${active === item.id ? "on" : ""}`}>
                 <span className="nav-ico">{item.icon}</span>{item.label}
