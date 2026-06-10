@@ -8,8 +8,6 @@ import { supabase } from "../../lib/supabase";
 import { calcularProbabilidad } from "../../lib/prediccion";
 import { pesos, num } from "../../lib/format";
 
-const MS_DIA = 86400000;
-
 export default function Prediccion() {
   const [estado, setEstado] = useState("cargando");
   const [lista, setLista] = useState([]);
@@ -29,7 +27,6 @@ export default function Prediccion() {
         cli[k].dias = Math.max(cli[k].dias, parseInt(d.dias_vencidos) || 0);
       }
 
-      // Historial de acuerdos por cliente.
       const { data: acu } = await supabase.from("acuerdos_pago").select("cliente_nit, estado");
       const cumplidos = {}, incumplidos = {};
       for (const a of acu || []) {
@@ -37,11 +34,14 @@ export default function Prediccion() {
         if (a.estado === "Incumplido") incumplidos[a.cliente_nit] = (incumplidos[a.cliente_nit] || 0) + 1;
       }
 
-      // Última gestión por cliente.
-      const { data: gest } = await supabase.from("gestiones").select("cliente_nit, fecha");
-      const ultima = {};
+      // Última gestión por cliente, GUARDANDO su resultado.
+      const { data: gest } = await supabase.from("gestiones").select("cliente_nit, fecha, resultado");
+      const ultima = {}, ultimoResultado = {};
       for (const g of gest || []) {
-        if (!ultima[g.cliente_nit] || new Date(g.fecha) > new Date(ultima[g.cliente_nit])) ultima[g.cliente_nit] = g.fecha;
+        if (!ultima[g.cliente_nit] || new Date(g.fecha) > new Date(ultima[g.cliente_nit])) {
+          ultima[g.cliente_nit] = g.fecha;
+          ultimoResultado[g.cliente_nit] = g.resultado;
+        }
       }
 
       const filas = Object.values(cli).map((c) => {
@@ -50,12 +50,12 @@ export default function Prediccion() {
           pctVencida: c.total > 0 ? c.vencido / c.total : 0,
           cumplidos: cumplidos[c.nit] || 0,
           incumplidos: incumplidos[c.nit] || 0,
-          gestionReciente: ultima[c.nit] ? (Date.now() - new Date(ultima[c.nit])) / MS_DIA <= 30 : false,
+          ultimoResultado: ultimoResultado[c.nit] || null,
         });
         return { ...c, ...pred };
       });
 
-      filas.sort((a, b) => a.prob - b.prob); // más riesgosos primero
+      filas.sort((a, b) => a.prob - b.prob);
       setLista(filas);
       setEstado("ok");
     })();
@@ -79,8 +79,10 @@ export default function Prediccion() {
     contenido = (
       <>
         <div className="pred-explica">
-          Probabilidad estimada de pago por cliente, según su mora, su % vencido, su historial de promesas
-          (cumplidas/incumplidas) y si tuvo gestión reciente. Ordenados del más riesgoso al menos.
+          <b>¿Cómo se calcula?</b> La probabilidad parte de ~88% y se ajusta así: <b>baja</b> con más días de mora
+          y mayor % del saldo vencido; <b>sube</b> con cada promesa cumplida; <b>baja fuerte</b> con cada promesa
+          incumplida; y según la última gestión (un "compromiso" o "contactado" suma, un "no contesta" o "número
+          errado" resta). Riesgo: Bajo ≥70% · Medio 45–69% · Alto 25–44% · Crítico &lt;25%.
         </div>
         <div className="pred-resumen">
           <span style={{ color: "var(--rojo)" }}><b>{c["Crítico"]}</b> crítico</span>

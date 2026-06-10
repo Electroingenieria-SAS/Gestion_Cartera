@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { getAlertas } from "../../lib/alertas";
@@ -16,6 +16,7 @@ export default function Alertas() {
   const [alertas, setAlertas] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const [envioMsg, setEnvioMsg] = useState(null);
+  const [filtro, setFiltro] = useState("critica"); // por defecto: solo críticas
 
   async function enviarCorreo() {
     setEnviando(true);
@@ -40,6 +41,17 @@ export default function Alertas() {
     })();
   }, []);
 
+  const conteo = useMemo(() => {
+    const c = { critica: 0, alta: 0, media: 0 };
+    alertas.forEach((a) => c[a.nivel]++);
+    return c;
+  }, [alertas]);
+
+  const visibles = useMemo(
+    () => (filtro === "todas" ? alertas : alertas.filter((a) => a.nivel === filtro)),
+    [alertas, filtro]
+  );
+
   let contenido;
   if (estado === "cargando") {
     contenido = <p className="muted">Calculando alertas…</p>;
@@ -52,27 +64,38 @@ export default function Alertas() {
       </div>
     );
   } else {
-    const conteo = { critica: 0, alta: 0, media: 0 };
-    alertas.forEach((a) => conteo[a.nivel]++);
     contenido = (
       <>
-        <div className="alert-resumen">
+        <div className="pred-resumen">
           <span style={{ color: "var(--rojo)" }}><b>{conteo.critica}</b> críticas</span>
           <span style={{ color: "var(--amarillo)" }}><b>{conteo.alta}</b> altas</span>
           <span style={{ color: "var(--azul)" }}><b>{conteo.media}</b> medias</span>
         </div>
-        <div className="alert-lista">
-          {alertas.map((a, i) => (
-            <div className="alert-item" key={i} style={{ borderLeftColor: NIVEL[a.nivel].color }}>
-              <div className="alert-main">
-                <span className="pill" style={{ background: NIVEL[a.nivel].bg, color: NIVEL[a.nivel].color }}>{a.tipo}</span>
-                <strong>{a.nombre}</strong>
-                <span className="muted">{a.detalle}</span>
-              </div>
-              <Link href={`/cliente/${encodeURIComponent(a.nit)}`} className="btn-mini">Gestionar</Link>
-            </div>
-          ))}
+        <div className="filtros">
+          <select value={filtro} onChange={(e) => setFiltro(e.target.value)}>
+            <option value="critica">Solo críticas</option>
+            <option value="alta">Solo altas</option>
+            <option value="media">Solo medias</option>
+            <option value="todas">Todas</option>
+          </select>
+          <span className="muted" style={{ alignSelf: "center" }}>{visibles.length} alertas mostradas</span>
         </div>
+        {visibles.length === 0 ? (
+          <p className="muted">No hay alertas en este nivel. 🎉</p>
+        ) : (
+          <div className="alert-lista">
+            {visibles.map((a, i) => (
+              <div className="alert-item" key={i} style={{ borderLeftColor: NIVEL[a.nivel].color }}>
+                <div className="alert-main">
+                  <span className="pill" style={{ background: NIVEL[a.nivel].bg, color: NIVEL[a.nivel].color }}>{a.tipo}</span>
+                  <strong>{a.nombre}</strong>
+                  <span className="muted">{a.detalle}</span>
+                </div>
+                <Link href={`/cliente/${encodeURIComponent(a.nit)}`} className="btn-mini">Gestionar</Link>
+              </div>
+            ))}
+          </div>
+        )}
       </>
     );
   }

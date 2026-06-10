@@ -22,7 +22,6 @@ export default function FichaCliente() {
   const [usuario, setUsuario] = useState({ id: null, nombre: "", rol: "consulta" });
   const soloLectura = usuario.rol === "consulta";
 
-  // Formulario de gestión
   const [tipo, setTipo] = useState("Llamada");
   const [resultado, setResultado] = useState("Contactado");
   const [obs, setObs] = useState("");
@@ -39,14 +38,13 @@ export default function FichaCliente() {
     const { data: hist } = await supabase.from("gestiones").select("*").eq("cliente_nit", nit).order("fecha", { ascending: false });
     setHistorial(hist || []);
 
-    // Predicción de pago.
+    // Predicción de pago (usa el RESULTADO de la última gestión).
     const { data: acu } = await supabase.from("acuerdos_pago").select("estado").eq("cliente_nit", nit);
     const cumplidos = (acu || []).filter((a) => a.estado === "Cumplido").length;
     const incumplidos = (acu || []).filter((a) => a.estado === "Incumplido").length;
-    const ultimaFecha = hist && hist[0] ? hist[0].fecha : null;
-    const gestionReciente = ultimaFecha ? (Date.now() - new Date(ultimaFecha)) / 86400000 <= 30 : false;
+    const ultimoResultado = hist && hist[0] ? hist[0].resultado : null;
     if (r && r.saldo > 0) {
-      setPred(calcularProbabilidad({ diasMora: r.dias, pctVencida: r.vencida / r.saldo, cumplidos, incumplidos, gestionReciente }));
+      setPred(calcularProbabilidad({ diasMora: r.dias, pctVencida: r.vencida / r.saldo, cumplidos, incumplidos, ultimoResultado }));
     } else {
       setPred(null);
     }
@@ -118,7 +116,6 @@ export default function FichaCliente() {
       <Link href="/plan" className="volver">← Volver al plan diario</Link>
 
       <div className="ficha-grid">
-        {/* Datos generales */}
         <div className="panel">
           <h3>Datos generales</h3>
           <div className="dato"><span>NIT</span><b>{nit}</b></div>
@@ -145,7 +142,6 @@ export default function FichaCliente() {
           </div>
         </div>
 
-        {/* Resumen financiero */}
         <div className="panel">
           <h3>Resumen financiero</h3>
           {sinDatos ? <p className="muted">Este cliente no está en la cartera actual.</p> : (
@@ -161,14 +157,31 @@ export default function FichaCliente() {
       </div>
 
       {pred && (
-        <div className="panel pred-panel" style={{ marginTop: 18 }}>
-          <div>
-            <h3 style={{ marginBottom: 4 }}>Predicción de pago (IA)</h3>
-            <p className="muted">{pred.recomendacion}</p>
+        <div className="panel" style={{ marginTop: 18 }}>
+          <div className="pred-panel">
+            <div>
+              <h3 style={{ marginBottom: 4 }}>Predicción de pago (IA)</h3>
+              <p className="muted">{pred.recomendacion}</p>
+            </div>
+            <div className="pred-num">
+              <span className="pred-pct" style={{ color: pred.color }}>{pred.prob}%</span>
+              <span className="pill" style={{ background: pred.color + "22", color: pred.color }}>Riesgo {pred.nivel}</span>
+            </div>
           </div>
-          <div className="pred-num">
-            <span className="pred-pct" style={{ color: pred.color }}>{pred.prob}%</span>
-            <span className="pill" style={{ background: pred.color + "22", color: pred.color }}>Riesgo {pred.nivel}</span>
+          <div style={{ marginTop: 14, borderTop: "1px solid var(--borde)", paddingTop: 14, display: "grid", gap: 8 }}>
+            <span className="muted" style={{ fontWeight: 600 }}>Por qué este resultado:</span>
+            {pred.factores.map((f) => {
+              const col = f.efecto === "sube" ? "var(--verde)" : f.efecto === "baja" ? "var(--rojo)" : "var(--texto-suave)";
+              return (
+                <div key={f.nombre} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13 }}>
+                  <span style={{ color: "var(--texto-suave)", flex: 1 }}>{f.nombre}</span>
+                  <span style={{ color: "var(--texto)" }}>{f.valor}</span>
+                  <span style={{ color: col, fontWeight: 700, minWidth: 78, textAlign: "right" }}>
+                    {f.efecto === "sube" ? "↑ sube" : f.efecto === "baja" ? "↓ baja" : "– neutro"}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
