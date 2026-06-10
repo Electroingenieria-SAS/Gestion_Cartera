@@ -43,9 +43,9 @@ cada fase.
 Construido por fases:
 
 - [x] **Fase 1** — Base del proyecto + despliegue + identidad de marca.
-- [ ] **Fase 2** — Login y roles (Supabase Auth).
-- [ ] **Fase 3** — Base de datos + carga del archivo de Siesa.
-- [ ] **Fase 4** — Dashboard de indicadores (KPIs).
-- [ ] **Fase 5** — Plan diario priorizado + ficha y gestión de clientes.
-- [ ] **Fase 6** — Acuerdos de pago + alertas + correos.
+- [x] **Fase 2** — Login y roles (Supabase Auth).
+- [x] **Fase 3** — Base de datos + carga del archivo de Siesa.
+- [x] **Fase 4** — Dashboard de indicadores (KPIs).
+- [x] **Fase 5** — Plan diario priorizado + ficha y gestión de clientes.
+- [x] **Fase 6** — Acuerdos de pago + alertas + correos.
 - [ ] **Fase 7** — IA predictiva (probabilidad de pago).
