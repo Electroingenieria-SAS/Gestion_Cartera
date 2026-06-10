@@ -1,4 +1,4 @@
-# Gestión de Cartera — Electroingeniería S.A.S.
+# Gestión de Cartera 
 
 Plataforma web SaaS para la gestión integral de cartera y cobranzas.
 Reemplaza el uso de Excel por indicadores en tiempo real, un plan diario de
