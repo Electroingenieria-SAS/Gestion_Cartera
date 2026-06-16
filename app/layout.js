@@ -1,4 +1,5 @@
 import "./globals.css";
+import Footer from "./components/Footer";
 
 // Metadatos: título de la pestaña + favicon (Next.js usa app/icon.png automáticamente).
 export const metadata = {
@@ -21,17 +22,7 @@ export default function RootLayout({ children }) {
       <body>
         <div className="page">
           {children}
-
-          {/* Footer obligatorio en TODAS las páginas */}
-          <footer className="footer">
-            <div className="container footer-inner">
-              <span className="credit">
-                Construido para <strong>Electroingeniería S.A.S.</strong> — Desarrollado por{" "}
-                <strong>Juan Camilo Montoya</strong>
-              </span>
-              <span className="credit">© {new Date().getFullYear()}</span>
-            </div>
-          </footer>
+          <Footer />
         </div>
       </body>
     </html>
