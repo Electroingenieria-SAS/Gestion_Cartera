@@ -15,15 +15,15 @@ const ROLES = {
 
 // Menú lateral. "soloSupervisor" se muestra únicamente a supervisores.
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "▣", href: "/dashboard" },
-  { id: "cargar", label: "Cargar archivo", icon: "⬆", href: "/cargar" },
-  { id: "plan", label: "Plan diario", icon: "◎", href: "/plan" },
-  { id: "prediccion", label: "Predicción IA", icon: "✦", href: "/prediccion" },
-  { id: "cartera", label: "Cartera", icon: "▤", href: "/cartera" },
-  { id: "clientes", label: "Clientes", icon: "◍", href: "/clientes" },
-  { id: "acuerdos", label: "Acuerdos", icon: "✓", href: "/acuerdos" },
-  { id: "alertas", label: "Alertas", icon: "◔", href: "/alertas" },
-  { id: "auditoria", label: "Auditoría", icon: "❑", href: "/auditoria", soloSupervisor: true },
+  { id: "dashboard", label: "Dashboard", icon: "📊", href: "/dashboard" },
+  { id: "cargar", label: "Cargar archivo", icon: "📤", href: "/cargar" },
+  { id: "plan", label: "Plan diario", icon: "📋", href: "/plan" },
+  { id: "prediccion", label: "Predicción IA", icon: "🔮", href: "/prediccion" },
+  { id: "cartera", label: "Cartera", icon: "💰", href: "/cartera" },
+  { id: "clientes", label: "Clientes", icon: "👥", href: "/clientes" },
+  { id: "acuerdos", label: "Acuerdos", icon: "🤝", href: "/acuerdos" },
+  { id: "alertas", label: "Alertas", icon: "🔔", href: "/alertas" },
+  { id: "auditoria", label: "Auditoría", icon: "🔍", href: "/auditoria", soloSupervisor: true },
 ];
 
 // Estructura común (menú + barra superior) para todas las páginas internas.
