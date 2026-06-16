@@ -5,6 +5,7 @@ import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { getCargaActual } from "../../lib/cartera";
 import { pesos, num } from "../../lib/format";
+import { exportarExcel, exportarPDF, hoyISO } from "../../lib/exportar";
 
 const COL_CAT = {
   "Vigente": "#15a36b", "Vencido 1 a 30": "#ddbc00",
@@ -19,6 +20,8 @@ export default function Cartera() {
   const [vendedor, setVendedor] = useState("");
   const [ciudad, setCiudad] = useState("");
   const [categoria, setCategoria] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [envioMsg, setEnvioMsg] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -28,6 +31,21 @@ export default function Cartera() {
       setEstado("ok");
     })();
   }, []);
+
+  async function enviarReporte() {
+    setEnviando(true);
+    setEnvioMsg(null);
+    try {
+      const r = await fetch("/api/enviar-cartera-vencida");
+      const data = await r.json();
+      if (data.ok) setEnvioMsg({ tipo: "listo", txt: `Reporte enviado a ${data.destino}: ${data.facturas} facturas vencidas de ${data.clientes} clientes.` });
+      else setEnvioMsg({ tipo: "error", txt: data.error || "No se pudo enviar." });
+    } catch (e) {
+      setEnvioMsg({ tipo: "error", txt: "Error de conexión al enviar." });
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   const vendedores = useMemo(() => [...new Set(docs.map((d) => d.vendedor).filter(Boolean))].sort(), [docs]);
   const ciudades = useMemo(() => [...new Set(docs.map((d) => d.ciudad).filter(Boolean))].sort(), [docs]);
@@ -48,6 +66,35 @@ export default function Cartera() {
 
   function limpiar() { setBusqueda(""); setVendedor(""); setCiudad(""); setCategoria(""); }
 
+  function exportarAExcel() {
+    const filas = filtrados.map((d) => ({
+      NIT: d.nit,
+      Cliente: d.nombre_cliente || "",
+      Ciudad: d.ciudad || "",
+      Vendedor: d.vendedor || "",
+      Documento: d.numero_docto || "",
+      Vencimiento: d.fecha_vencimiento || "",
+      "Días vencido": parseInt(d.dias_vencidos) || 0,
+      Rango: d.categoria || "",
+      Saldo: Number(d.saldo) || 0,
+    }));
+    exportarExcel(`Cartera_${hoyISO()}`, filas, "Cartera");
+  }
+
+  function exportarAPDF() {
+    const columnas = [
+      { header: "NIT", key: "nit" }, { header: "Cliente", key: "cliente" },
+      { header: "Ciudad", key: "ciudad" }, { header: "Vendedor", key: "vendedor" },
+      { header: "Documento", key: "doc" }, { header: "Días", key: "dias" },
+      { header: "Rango", key: "rango" }, { header: "Saldo", key: "saldo" },
+    ];
+    const filas = filtrados.map((d) => ({
+      nit: d.nit, cliente: d.nombre_cliente || "", ciudad: d.ciudad || "", vendedor: d.vendedor || "",
+      doc: d.numero_docto || "", dias: d.dias_vencidos || 0, rango: d.categoria || "", saldo: pesos(d.saldo),
+    }));
+    exportarPDF("Cartera", `${filtrados.length} facturas · ${new Date().toLocaleDateString("es-CO")}`, columnas, filas);
+  }
+
   let contenido;
   if (estado === "cargando") {
     contenido = <p className="muted">Cargando cartera…</p>;
@@ -63,6 +110,15 @@ export default function Cartera() {
   } else {
     contenido = (
       <>
+        <div className="alert-toolbar">
+          <button className="btn btn-primary" onClick={enviarReporte} disabled={enviando}>
+            {enviando ? "Enviando…" : "Enviar cartera vencida a mi correo"}
+          </button>
+          <button className="btn-ghost-light" onClick={exportarAExcel}>Exportar Excel</button>
+          <button className="btn-ghost-light" onClick={exportarAPDF}>Exportar PDF</button>
+          {envioMsg && <span className={`envio-msg ${envioMsg.tipo}`}>{envioMsg.txt}</span>}
+        </div>
+
         <div className="filtros">
           <input placeholder="Buscar cliente o NIT…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
           <select value={vendedor} onChange={(e) => setVendedor(e.target.value)}>

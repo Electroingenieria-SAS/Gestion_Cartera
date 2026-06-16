@@ -7,6 +7,7 @@ import { getCargaActual } from "../../lib/cartera";
 import { supabase } from "../../lib/supabase";
 import { calcularScore, nivelPrioridad } from "../../lib/scoring";
 import { pesos, num } from "../../lib/format";
+import { exportarExcel, exportarPDF, hoyISO } from "../../lib/exportar";
 
 export default function PlanDiario() {
   const [estado, setEstado] = useState("cargando");
@@ -54,6 +55,29 @@ export default function PlanDiario() {
   const prioritarios = lista.filter((f) => f.score >= 40); // Alta o Crítica
   const mostradas = verTodos ? lista : prioritarios;
 
+  function exportarAExcel() {
+    const filas = mostradas.map((f, i) => ({
+      "#": i + 1, Cliente: f.nombre || f.nit, NIT: f.nit, Ciudad: f.ciudad || "",
+      "Valor vencido": Number(f.vencido) || 0, "Días mora": f.dias,
+      "Última gestión": f.ultima ? new Date(f.ultima).toLocaleDateString("es-CO") : "Nunca",
+      Score: f.score, Prioridad: f.prio.label,
+    }));
+    exportarExcel(`PlanDiario_${hoyISO()}`, filas, "Plan diario");
+  }
+
+  function exportarAPDF() {
+    const columnas = [
+      { header: "#", key: "n" }, { header: "Cliente", key: "cliente" }, { header: "NIT", key: "nit" },
+      { header: "Valor vencido", key: "vencido" }, { header: "Días", key: "dias" },
+      { header: "Última gestión", key: "ultima" }, { header: "Score", key: "score" }, { header: "Prioridad", key: "prio" },
+    ];
+    const filas = mostradas.map((f, i) => ({
+      n: i + 1, cliente: f.nombre || f.nit, nit: f.nit, vencido: pesos(f.vencido), dias: f.dias,
+      ultima: f.ultima ? new Date(f.ultima).toLocaleDateString("es-CO") : "Nunca", score: f.score, prio: f.prio.label,
+    }));
+    exportarPDF("Plan diario", `${mostradas.length} clientes · ${new Date().toLocaleDateString("es-CO")}`, columnas, filas);
+  }
+
   let contenido;
   if (estado === "cargando") {
     contenido = <p className="muted">Calculando prioridades…</p>;
@@ -76,12 +100,14 @@ export default function PlanDiario() {
           <b>¿Cómo se calcula el Score?</b> Combina 4 factores, cada uno llevado a una escala de 0 a 100 y luego
           ponderado: <b>40%</b> días de mora · <b>30%</b> valor adeudado · <b>20%</b> días sin gestión ·
           <b> 10%</b> promesas incumplidas. Prioridad: Crítica ≥66 · Alta 40–65 · Media 20–39 · Baja &lt;20.
-          
+          Los pesos son configurables en <code>business_rules/priority_rules.json</code>.
         </div>
         <div className="filtros" style={{ marginTop: 14 }}>
           <button className="btn-ghost-light" onClick={() => setVerTodos(!verTodos)}>
             {verTodos ? "Ver solo prioritarios" : `Ver todos (${lista.length})`}
           </button>
+          <button className="btn-ghost-light" onClick={exportarAExcel}>Exportar Excel</button>
+          <button className="btn-ghost-light" onClick={exportarAPDF}>Exportar PDF</button>
           <span className="muted" style={{ alignSelf: "center" }}>Mostrando {mostradas.length} clientes</span>
         </div>
         <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
