@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { getCargaActual, getTendencia } from "../../lib/cartera";
@@ -14,8 +14,8 @@ import {
 
 const ORDEN = ["Vigente", "Vencido 1 a 30", "Vencido 31 a 60", "Vencido 61 a 90", "Vencido 91 >"];
 const ETI = {
-  "Vigente": "Vigente", "Vencido 1 a 30": "1-30 dias",
-  "Vencido 31 a 60": "31-60 dias", "Vencido 61 a 90": "61-90 dias", "Vencido 91 >": "+90 dias",
+  "Vigente": "Vigente", "Vencido 1 a 30": "1-30 días",
+  "Vencido 31 a 60": "31-60 días", "Vencido 61 a 90": "61-90 días", "Vencido 91 >": "+90 días",
 };
 const COL = {
   "Vigente": "#15a36b", "Vencido 1 a 30": "#ddbc00",
@@ -32,13 +32,13 @@ export default function Dashboard() {
   const [estado, setEstado] = useState("cargando");
   const [carga, setCarga] = useState(null);
   const [previa, setPrevia] = useState(null);
-  const [seg, setSeg] = useState([]);
-  const [vend, setVend] = useState([]);
-  const [top, setTop] = useState([]);
+  const [docs, setDocs] = useState([]);
   const [tend, setTend] = useState([]);
-  const [mounted, setMounted] = useState(false);
   const [acuPend, setAcuPend] = useState(0);
   const [numAlertas, setNumAlertas] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [fVend, setFVend] = useState("");
+  const [fCiudad, setFCiudad] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -46,6 +46,7 @@ export default function Dashboard() {
       const { carga, docs } = await getCargaActual();
       if (!carga) { setEstado("vacio"); return; }
       setCarga(carga);
+      setDocs(docs);
 
       const t = await getTendencia();
       setTend(t.map((c) => ({
@@ -55,35 +56,6 @@ export default function Dashboard() {
       })));
       setPrevia(t.length >= 2 ? t[t.length - 2] : null);
 
-      const segMap = Object.fromEntries(ORDEN.map((c) => [c, 0]));
-      for (const d of docs) if (segMap[d.categoria] != null) segMap[d.categoria] += Number(d.saldo) || 0;
-      setSeg(ORDEN.filter((c) => segMap[c] > 0).map((c) => ({ name: ETI[c], cat: c, value: Math.round(segMap[c]) })));
-
-      const vMap = {};
-      for (const d of docs) {
-        if (d.categoria && d.categoria !== "Vigente") {
-          const k = d.vendedor || "Sin vendedor";
-          vMap[k] = (vMap[k] || 0) + (Number(d.saldo) || 0);
-        }
-      }
-      setVend(
-        Object.entries(vMap)
-          .map(([k, v]) => ({ vendedor: k.split(" ").slice(0, 2).join(" "), valor: Math.round(v / 1e6) }))
-          .sort((a, b) => b.valor - a.valor)
-          .slice(0, 8)
-      );
-
-      const cMap = {};
-      for (const d of docs) {
-        const k = d.nit;
-        if (!cMap[k]) cMap[k] = { nit: k, nombre: d.nombre_cliente, ciudad: d.ciudad, vendedor: d.vendedor, total: 0, vencido: 0, dias: 0 };
-        const c = cMap[k];
-        c.total += Number(d.saldo) || 0;
-        if (d.categoria && d.categoria !== "Vigente") c.vencido += Number(d.saldo) || 0;
-        c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
-      }
-      setTop(Object.values(cMap).sort((a, b) => b.vencido - a.vencido).slice(0, 20));
-
       const { count } = await supabase.from("acuerdos_pago").select("*", { count: "exact", head: true }).eq("estado", "Pendiente");
       setAcuPend(count || 0);
       getAlertas().then((a) => setNumAlertas(a.length)).catch(() => {});
@@ -92,35 +64,93 @@ export default function Dashboard() {
     })();
   }, []);
 
-  let contenido;
+  // Opciones de filtro (de TODA la cartera, no de lo filtrado).
+  const vendedores = useMemo(() => [...new Set(docs.map((d) => d.vendedor).filter(Boolean))].sort(), [docs]);
+  const ciudades = useMemo(() => [...new Set(docs.map((d) => d.ciudad).filter(Boolean))].sort(), [docs]);
 
+  const filtrados = useMemo(
+    () => docs.filter((d) => (!fVend || d.vendedor === fVend) && (!fCiudad || d.ciudad === fCiudad)),
+    [docs, fVend, fCiudad]
+  );
+
+  // Todo lo del dashboard se recalcula según el filtro.
+  const data = useMemo(() => {
+    const cMap = {};
+    let total = 0, vigente = 0, dificil = 0;
+    const segMap = Object.fromEntries(ORDEN.map((c) => [c, 0]));
+    const vMap = {};
+    for (const d of filtrados) {
+      const s = Number(d.saldo) || 0;
+      total += s;
+      if (d.categoria === "Vigente") vigente += s;
+      if (d.categoria === "Vencido 91 >") dificil += s;
+      if (segMap[d.categoria] != null) segMap[d.categoria] += s;
+      if (d.categoria && d.categoria !== "Vigente") {
+        const kv = d.vendedor || "Sin vendedor";
+        vMap[kv] = (vMap[kv] || 0) + s;
+      }
+      const k = d.nit;
+      if (!cMap[k]) cMap[k] = { nit: k, nombre: d.nombre_cliente, ciudad: d.ciudad, vendedor: d.vendedor, total: 0, vencido: 0, dias: 0, buckets: Object.fromEntries(ORDEN.map((c) => [c, 0])) };
+      const c = cMap[k];
+      c.total += s;
+      if (d.categoria && d.categoria !== "Vigente") c.vencido += s;
+      if (c.buckets[d.categoria] != null) c.buckets[d.categoria] += s;
+      c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
+    }
+    const clientes = Object.values(cMap);
+    const vencida = total - vigente;
+    const kpis = {
+      total, vigente, vencida,
+      pctVencida: total > 0 ? (vencida / total) * 100 : 0,
+      clientesTotales: clientes.length,
+      clientesMora: clientes.filter((c) => c.vencido > 0).length,
+      clientesRiesgo: clientes.filter((c) => c.dias > 90).length,
+      dificil,
+    };
+    const seg = ORDEN.filter((c) => segMap[c] > 0).map((c) => ({ name: ETI[c], cat: c, value: Math.round(segMap[c]) }));
+    const vend = Object.entries(vMap)
+      .map(([k, v]) => ({ vendedor: k.split(" ").slice(0, 2).join(" "), valor: Math.round(v / 1e6) }))
+      .sort((a, b) => b.valor - a.valor).slice(0, 8);
+    const top = [...clientes].sort((a, b) => b.vencido - a.vencido).slice(0, 20);
+    const matriz = [...clientes].sort((a, b) => b.total - a.total).slice(0, 60);
+    return { kpis, seg, vend, top, matriz };
+  }, [filtrados]);
+
+  const filtroActivo = !!(fVend || fCiudad);
+
+  let contenido;
   if (estado === "cargando") {
     contenido = <p className="muted">Cargando indicadores…</p>;
   } else if (estado === "vacio") {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">▤</div>
+        <div className="empty-ico">📊</div>
         <h2>Aún no has cargado cartera</h2>
         <p>Sube tu archivo de Siesa para ver tus indicadores reales.</p>
         <Link href="/cargar" className="btn btn-primary">Subir archivo de Siesa</Link>
       </div>
     );
   } else {
-    const c = carga;
-    const dt = previa && previa.cartera_total
-      ? ((c.cartera_total - previa.cartera_total) / previa.cartera_total) * 100 : null;
-    const deltaTotal = dt === null ? "primera carga" : (dt >= 0 ? "+" : "") + dt.toFixed(1).replace(".", ",") + "% vs anterior";
+    const k = data.kpis;
+    let deltaTotal = "primera carga";
+    if (filtroActivo) deltaTotal = "filtrado";
+    else if (previa && previa.cartera_total) {
+      const dt = ((k.total - previa.cartera_total) / previa.cartera_total) * 100;
+      deltaTotal = (dt >= 0 ? "+" : "") + dt.toFixed(1).replace(".", ",") + "% vs anterior";
+    }
 
     const kpis = [
-      { label: "Cartera Total", value: millones(c.cartera_total), sub: deltaTotal, color: "var(--azul)", barra: 100 },
-      { label: "Cartera Vigente", value: millones(c.cartera_vigente), sub: pct((c.cartera_vigente / c.cartera_total) * 100) + " del total", color: "var(--verde)", barra: (c.cartera_vigente / c.cartera_total) * 100 },
-      { label: "Cartera Vencida", value: millones(c.cartera_vencida), sub: pct(c.pct_vencida) + " del total", color: "var(--rojo)", barra: c.pct_vencida },
-      { label: "% Cartera Vencida", value: pct(c.pct_vencida), sub: c.pct_vencida > 40 ? "Crítico" : c.pct_vencida >= 20 ? "Atención" : "Normal", color: colorMora(c.pct_vencida), barra: c.pct_vencida },
-      { label: "Clientes Totales", value: num(c.clientes_totales), sub: num(c.total_documentos) + " documentos", color: "var(--azul)", barra: 100 },
-      { label: "Clientes con Mora", value: num(c.clientes_mora), sub: pct((c.clientes_mora / c.clientes_totales) * 100) + " de clientes", color: "var(--amarillo)", barra: (c.clientes_mora / c.clientes_totales) * 100 },
-      { label: "Clientes en Riesgo", value: num(c.clientes_riesgo), sub: "Mora +90 días", color: "var(--rojo)", barra: (c.clientes_riesgo / c.clientes_totales) * 100 },
-      { label: "Acuerdos Pendientes", value: num(acuPend), sub: acuPend ? "Compromisos activos" : "Sin acuerdos aún", color: "var(--azul)", barra: acuPend ? 100 : 0 },
+      { label: "Cartera Total", value: millones(k.total), sub: deltaTotal, color: "var(--azul)", barra: 100 },
+      { label: "Cartera Vigente", value: millones(k.vigente), sub: pct(k.total ? (k.vigente / k.total) * 100 : 0) + " del total", color: "var(--verde)", barra: k.total ? (k.vigente / k.total) * 100 : 0 },
+      { label: "Cartera Vencida", value: millones(k.vencida), sub: pct(k.pctVencida) + " del total", color: "var(--rojo)", barra: k.pctVencida },
+      { label: "% Cartera Vencida", value: pct(k.pctVencida), sub: k.pctVencida > 40 ? "Crítico" : k.pctVencida >= 20 ? "Atención" : "Normal", color: colorMora(k.pctVencida), barra: k.pctVencida },
+      { label: "Clientes Totales", value: num(k.clientesTotales), sub: num(filtrados.length) + " documentos", color: "var(--azul)", barra: 100 },
+      { label: "Clientes con Mora", value: num(k.clientesMora), sub: pct(k.clientesTotales ? (k.clientesMora / k.clientesTotales) * 100 : 0) + " de clientes", color: "var(--amarillo)", barra: k.clientesTotales ? (k.clientesMora / k.clientesTotales) * 100 : 0 },
+      { label: "Clientes Mora +90", value: num(k.clientesRiesgo), sub: "Riesgo alto", color: "var(--rojo)", barra: k.clientesTotales ? (k.clientesRiesgo / k.clientesTotales) * 100 : 0 },
+      { label: "Cartera Difícil Cobro", value: millones(k.dificil), sub: "Vencido +90 días", color: "var(--rojo)", barra: k.total ? (k.dificil / k.total) * 100 : 0 },
     ];
+
+    const monto = (v) => (v > 0 ? pesos(v) : <span className="muted">—</span>);
 
     contenido = (
       <>
@@ -130,13 +160,26 @@ export default function Dashboard() {
             <span className="alert-banner-cta">Ver alertas →</span>
           </Link>
         )}
+
+        <div className="filtros">
+          <select value={fVend} onChange={(e) => setFVend(e.target.value)}>
+            <option value="">Todos los vendedores</option>
+            {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+          <select value={fCiudad} onChange={(e) => setFCiudad(e.target.value)}>
+            <option value="">Todas las ciudades</option>
+            {ciudades.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+          {filtroActivo && <button className="btn-ghost-light" onClick={() => { setFVend(""); setFCiudad(""); }}>Limpiar filtros</button>}
+        </div>
+
         <div className="kpi-grid kpi-8">
-          {kpis.map((k) => (
-            <div className="kpi" key={k.label}>
-              <div className="label">{k.label}</div>
-              <div className="value" style={{ color: k.color === "var(--texto-suave)" ? "var(--texto-suave)" : "var(--azul)" }}>{k.value}</div>
-              <div className="delta" style={{ color: "var(--texto-suave)" }}>{k.sub}</div>
-              <div className="bar"><i style={{ width: `${Math.min(100, Math.max(0, k.barra))}%`, background: k.color }} /></div>
+          {kpis.map((kp) => (
+            <div className="kpi" key={kp.label}>
+              <div className="label">{kp.label}</div>
+              <div className="value" style={{ color: "var(--azul)" }}>{kp.value}</div>
+              <div className="delta" style={{ color: "var(--texto-suave)" }}>{kp.sub}</div>
+              <div className="bar"><i style={{ width: `${Math.min(100, Math.max(0, kp.barra))}%`, background: kp.color }} /></div>
             </div>
           ))}
         </div>
@@ -145,11 +188,11 @@ export default function Dashboard() {
           <>
             <div className="charts-2">
               <div className="panel">
-                <h3>Segmentación de cartera</h3>
+                <h3>Estado de cartera</h3>
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
-                    <Pie data={seg} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={2}>
-                      {seg.map((s) => <Cell key={s.cat} fill={COL[s.cat]} />)}
+                    <Pie data={data.seg} dataKey="value" nameKey="name" innerRadius={62} outerRadius={92} paddingAngle={2}>
+                      {data.seg.map((s) => <Cell key={s.cat} fill={COL[s.cat]} />)}
                     </Pie>
                     <Tooltip formatter={(v) => pesos(v)} />
                     <Legend />
@@ -160,7 +203,7 @@ export default function Dashboard() {
               <div className="panel">
                 <h3>Cartera vencida por vendedor (millones)</h3>
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={vend} layout="vertical" margin={{ left: 10, right: 16 }}>
+                  <BarChart data={data.vend} layout="vertical" margin={{ left: 10, right: 16 }}>
                     <CartesianGrid horizontal={false} stroke="#eef2f8" />
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis type="category" dataKey="vendedor" width={120} tick={{ fontSize: 11 }} />
@@ -172,8 +215,8 @@ export default function Dashboard() {
             </div>
 
             <div className="panel" style={{ marginTop: 18 }}>
-              <h3>Tendencia de cartera (millones)</h3>
-              <ResponsiveContainer width="100%" height={260}>
+              <h3>Tendencia de cartera — global (millones)</h3>
+              <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={tend} margin={{ left: 10, right: 16 }}>
                   <CartesianGrid stroke="#eef2f8" />
                   <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
@@ -188,6 +231,45 @@ export default function Dashboard() {
             </div>
           </>
         )}
+
+        <div className="panel" style={{ marginTop: 18 }}>
+          <h3>Estado de cartera por cliente</h3>
+          <div className="tabla-wrap">
+            <table className="data">
+              <colgroup>
+                <col style={{ width: "28%" }} /><col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th style={{ textAlign: "right" }}>Vigente</th>
+                  <th style={{ textAlign: "right" }}>1-30</th>
+                  <th style={{ textAlign: "right" }}>31-60</th>
+                  <th style={{ textAlign: "right" }}>61-90</th>
+                  <th style={{ textAlign: "right" }}>+90</th>
+                  <th style={{ textAlign: "right" }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.matriz.map((c) => (
+                  <tr key={c.nit}>
+                    <td><b>{c.nombre || c.nit}</b><br /><span className="muted">{c.nit}</span></td>
+                    <td style={{ textAlign: "right" }}>{monto(c.buckets["Vigente"])}</td>
+                    <td style={{ textAlign: "right" }}>{monto(c.buckets["Vencido 1 a 30"])}</td>
+                    <td style={{ textAlign: "right" }}>{monto(c.buckets["Vencido 31 a 60"])}</td>
+                    <td style={{ textAlign: "right" }}>{monto(c.buckets["Vencido 61 a 90"])}</td>
+                    <td style={{ textAlign: "right", color: "var(--rojo)", fontWeight: 700 }}>{monto(c.buckets["Vencido 91 >"])}</td>
+                    <td style={{ textAlign: "right", fontWeight: 700 }}>{pesos(c.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted" style={{ marginTop: 10 }}>Mostrando los {data.matriz.length} clientes con mayor saldo.</p>
+        </div>
 
         <div className="panel" style={{ marginTop: 18 }}>
           <h3>Top 20 clientes críticos</h3>
@@ -208,7 +290,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {top.map((c, i) => (
+                {data.top.map((c, i) => (
                   <tr key={c.nit}>
                     <td>{i + 1}</td>
                     <td><b>{c.nombre || c.nit}</b><br /><span className="muted">{c.nit}</span></td>
@@ -225,8 +307,8 @@ export default function Dashboard() {
         </div>
 
         <p className="muted" style={{ marginTop: 18 }}>
-          Datos de la carga: {new Date(c.fecha_carga).toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" })}
-          {c.nombre_archivo ? ` · ${c.nombre_archivo}` : ""}
+          Datos de la carga: {new Date(carga.fecha_carga).toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short" })}
+          {carga.nombre_archivo ? ` · ${carga.nombre_archivo}` : ""}
         </p>
       </>
     );
