@@ -583,3 +583,65 @@ table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; table-la
   .topnav-item { padding: 8px 10px; }
   .topnav-ico { font-size: 18px; }
 }
+/* =========================================================
+   AGREGAR ESTE BLOQUE AL FINAL de app/globals.css
+   (justo antes del último cierre de @media o al final del archivo)
+   --- Estilos para tarjetas de Etapa de Cobranza ---
+   ========================================================= */
+
+.etapas-resumen {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+.etapa-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--blanco);
+  border: 1.5px solid var(--borde);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.etapa-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,55,138,0.08);
+}
+.etapa-card.on {
+  box-shadow: 0 6px 22px rgba(0,55,138,0.12);
+  border-width: 2px;
+}
+.etapa-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.6);
+}
+.etapa-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.etapa-info strong {
+  font-size: 14px; color: var(--texto); font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.etapa-rango {
+  font-size: 11px; color: var(--texto-suave); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.etapa-cifras {
+  display: flex; flex-direction: column; align-items: flex-end;
+  text-align: right; line-height: 1.2;
+}
+.etapa-cifras b { font-size: 22px; font-weight: 800; }
+.etapa-cifras .muted { font-size: 11px; }
+
+/* Responsive: 2x2 en tablet, 1 columna en celular */
+@media (max-width: 920px) {
+  .etapas-resumen { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .etapas-resumen { grid-template-columns: 1fr; }
+}
+
