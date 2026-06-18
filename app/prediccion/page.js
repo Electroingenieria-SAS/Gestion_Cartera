@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { getCargaActual } from "../../lib/cartera";
 import { supabase } from "../../lib/supabase";
 import { calcularProbabilidad } from "../../lib/prediccion";
 import { pesos, num } from "../../lib/format";
+import { etapaCobranza, ETAPAS_ORDEN } from "../../lib/etapas";
 
 export default function Prediccion() {
   const [estado, setEstado] = useState("cargando");
   const [lista, setLista] = useState([]);
+  // Filtro por etapa de cobranza. null = todas.
+  const [etapaSel, setEtapaSel] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -52,7 +55,8 @@ export default function Prediccion() {
           incumplidos: incumplidos[c.nit] || 0,
           ultimoResultado: ultimoResultado[c.nit] || null,
         });
-        return { ...c, ...pred };
+        const etapa = etapaCobranza(c.dias);
+        return { ...c, ...pred, etapa };
       });
 
       filas.sort((a, b) => a.prob - b.prob);
@@ -60,6 +64,26 @@ export default function Prediccion() {
       setEstado("ok");
     })();
   }, []);
+
+  // Resumen por etapa: cuántos clientes y % promedio de probabilidad de pago.
+  const resumenEtapas = useMemo(() => {
+    const r = {};
+    ETAPAS_ORDEN.forEach((e) => { r[e.id] = { etapa: e, count: 0, sumaProb: 0, vencido: 0 }; });
+    for (const f of lista) {
+      r[f.etapa.id].count += 1;
+      r[f.etapa.id].sumaProb += f.prob;
+      r[f.etapa.id].vencido += f.vencido;
+    }
+    // Calcular probabilidad promedio por etapa.
+    ETAPAS_ORDEN.forEach((e) => {
+      const x = r[e.id];
+      x.probProm = x.count > 0 ? Math.round(x.sumaProb / x.count) : 0;
+    });
+    return r;
+  }, [lista]);
+
+  // Lista filtrada por etapa (si la hay).
+  const mostradas = etapaSel ? lista.filter((f) => f.etapa.id === etapaSel) : lista;
 
   let contenido;
   if (estado === "cargando") {
@@ -75,7 +99,7 @@ export default function Prediccion() {
     );
   } else {
     const c = { Bajo: 0, Medio: 0, Alto: 0, Crítico: 0 };
-    lista.forEach((f) => c[f.nivel]++);
+    mostradas.forEach((f) => c[f.nivel]++);
     contenido = (
       <>
         <div className="pred-explica">
@@ -84,31 +108,79 @@ export default function Prediccion() {
           incumplida; y según la última gestión (un "compromiso" o "contactado" suma, un "no contesta" o "número
           errado" resta). Riesgo: Bajo ≥70% · Medio 45–69% · Alto 25–44% · Crítico &lt;25%.
         </div>
-        <div className="pred-resumen">
+
+        {/* === Resumen por etapa de cobranza === */}
+        <div className="etapas-resumen">
+          {ETAPAS_ORDEN.map((e) => {
+            const r = resumenEtapas[e.id];
+            const activo = etapaSel === e.id;
+            return (
+              <button
+                key={e.id}
+                className={`etapa-card ${activo ? "on" : ""}`}
+                style={{ borderColor: e.color, background: activo ? e.bg : "var(--blanco)" }}
+                onClick={() => setEtapaSel(activo ? null : e.id)}
+                title={e.descripcion}
+              >
+                <span className="etapa-dot" style={{ background: e.color }} />
+                <div className="etapa-info">
+                  <strong>{e.label}</strong>
+                  <span className="etapa-rango">{e.descripcion}</span>
+                </div>
+                <div className="etapa-cifras">
+                  <b style={{ color: e.color }}>{r.count}</b>
+                  <span className="muted">Prob. prom. {r.probProm}%</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="filtros" style={{ marginTop: 14 }}>
+          {etapaSel && (
+            <button className="btn-ghost-light" onClick={() => setEtapaSel(null)}>
+              Quitar filtro de etapa
+            </button>
+          )}
+          <span className="muted" style={{ alignSelf: "center" }}>Mostrando {mostradas.length} clientes</span>
+        </div>
+
+        <div className="pred-resumen" style={{ marginTop: 12 }}>
           <span style={{ color: "var(--rojo)" }}><b>{c["Crítico"]}</b> crítico</span>
           <span style={{ color: "var(--amarillo)" }}><b>{c["Alto"]}</b> alto</span>
           <span style={{ color: "var(--azul)" }}><b>{c["Medio"]}</b> medio</span>
           <span style={{ color: "var(--verde)" }}><b>{c["Bajo"]}</b> bajo</span>
         </div>
+
         <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
           <div className="tabla-wrap">
             <table className="data">
               <colgroup>
-                <col style={{ width: "24%" }} /><col style={{ width: "14%" }} />
-                <col style={{ width: "8%" }} /><col style={{ width: "16%" }} />
-                <col style={{ width: "11%" }} /><col style={{ width: "27%" }} />
+                <col style={{ width: "22%" }} /><col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} /><col style={{ width: "7%" }} />
+                <col style={{ width: "15%" }} /><col style={{ width: "10%" }} />
+                <col style={{ width: "22%" }} />
               </colgroup>
               <thead>
                 <tr>
-                  <th>Cliente</th><th style={{ textAlign: "right" }}>Vencido</th>
-                  <th style={{ textAlign: "right" }}>Mora</th><th>Prob. de pago</th>
-                  <th>Riesgo</th><th>Recomendación</th>
+                  <th>Cliente</th>
+                  <th>Etapa</th>
+                  <th style={{ textAlign: "right" }}>Vencido</th>
+                  <th style={{ textAlign: "right" }}>Mora</th>
+                  <th>Prob. de pago</th>
+                  <th>Riesgo</th>
+                  <th>Recomendación</th>
                 </tr>
               </thead>
               <tbody>
-                {lista.map((f) => (
+                {mostradas.map((f) => (
                   <tr key={f.nit}>
                     <td><b>{f.nombre || f.nit}</b><br /><span className="muted">{f.nit}</span></td>
+                    <td>
+                      <span className="pill" style={{ background: f.etapa.bg, color: f.etapa.color }}>
+                        {f.etapa.label}
+                      </span>
+                    </td>
                     <td style={{ textAlign: "right", color: "var(--rojo)", fontWeight: 700 }}>{pesos(f.vencido)}</td>
                     <td style={{ textAlign: "right" }}>{f.dias}d</td>
                     <td>
