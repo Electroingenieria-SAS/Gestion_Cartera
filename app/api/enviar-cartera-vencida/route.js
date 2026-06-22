@@ -1,11 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 // =========================================================
 //  /api/enviar-cartera-vencida
 //  Envía por correo un reporte con TODA la cartera vencida
 //  de la carga más reciente, agrupada por cliente.
-//  Corre EN EL SERVIDOR: aquí sí podemos usar la clave secreta
-//  de Supabase y la de Resend con seguridad.
+//
+//  Refactorizado para usar Nodemailer + SMTP de Office 365
+//  en lugar de Resend.
 // =========================================================
 export const dynamic = "force-dynamic";
 
@@ -23,12 +25,13 @@ const COL_CAT = {
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const resendKey = process.env.RESEND_API_KEY;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
   const destino = process.env.CORREO_ALERTAS;
 
-  if (!url || !serviceKey || !resendKey || !destino) {
+  if (!url || !serviceKey || !smtpUser || !smtpPass || !destino) {
     return Response.json(
-      { ok: false, error: "Faltan variables de entorno. Revisa en Vercel: SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY y CORREO_ALERTAS." },
+      { ok: false, error: "Faltan variables de entorno. Revisa en Vercel: SUPABASE_SERVICE_ROLE_KEY, SMTP_USER, SMTP_PASS y CORREO_ALERTAS." },
       { status: 500 }
     );
   }
@@ -87,7 +90,6 @@ export async function GET() {
     c.vencido += Number(d.saldo) || 0;
     c.facturas += 1;
     c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
-    // Guardamos la peor categoría que tenga el cliente (más vencida)
     if ((d.dias_vencidos || 0) > c.dias - 1) c.peorCat = d.categoria || c.peorCat;
   }
 
@@ -148,30 +150,32 @@ export async function GET() {
     </div>
   </div>`;
 
-  // --- 5. Enviar con Resend ---
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "Gestión de Cartera <onboarding@resend.dev>",
-      to: [destino],
+  // --- 5. Envío con Nodemailer + SMTP Office 365 ---
+  const transporter = nodemailer.createTransport({
+    host: "smtp.office365.com",
+    port: 587,
+    secure: false,
+    auth: { user: smtpUser, pass: smtpPass },
+    tls: { ciphers: "SSLv3" },
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"Gestión de Cartera" <${smtpUser}>`,
+      to: destino,
       subject: `Cartera vencida — ${fmt(totalVencido)} · ${clientes.length} clientes`,
       html,
-    }),
-  });
-  const data = await r.json();
-  if (!r.ok) {
+    });
+    return Response.json({
+      ok: true,
+      destino,
+      facturas: docs.length,
+      clientes: clientes.length,
+    });
+  } catch (err) {
     return Response.json(
-      { ok: false, error: data?.message || "Error al enviar con Resend.", detalle: data },
+      { ok: false, error: err?.message || "Error al enviar.", code: err?.code || null },
       { status: 500 }
     );
   }
-
-  // El frontend espera EXACTAMENTE estas llaves: ok, destino, facturas, clientes
-  return Response.json({
-    ok: true,
-    destino,
-    facturas: docs.length,
-    clientes: clientes.length,
-  });
 }
