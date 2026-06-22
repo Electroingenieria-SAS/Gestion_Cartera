@@ -1,7 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
-// Esta función corre EN EL SERVIDOR (nunca en el navegador), por eso aquí
-// sí podemos usar la clave secreta de Supabase y la de Resend con seguridad.
+// =========================================================
+//  /api/enviar-alertas
+//  Envía por correo el resumen de alertas activas a la
+//  persona configurada en CORREO_ALERTAS.
+//
+//  Refactorizado para usar Nodemailer + SMTP de Office 365
+//  en lugar de Resend (que requería verificación de dominio).
+// =========================================================
 export const dynamic = "force-dynamic";
 
 const MS_DIA = 86400000;
@@ -10,12 +17,13 @@ const fmt = (v) => "$" + Math.round(Number(v) || 0).toLocaleString("es-CO");
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const resendKey = process.env.RESEND_API_KEY;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
   const destino = process.env.CORREO_ALERTAS;
 
-  if (!url || !serviceKey || !resendKey || !destino) {
+  if (!url || !serviceKey || !smtpUser || !smtpPass || !destino) {
     return Response.json(
-      { ok: false, error: "Faltan variables de entorno. Revisa en Vercel: SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY y CORREO_ALERTAS." },
+      { ok: false, error: "Faltan variables de entorno. Revisa en Vercel: SUPABASE_SERVICE_ROLE_KEY, SMTP_USER, SMTP_PASS y CORREO_ALERTAS." },
       { status: 500 }
     );
   }
@@ -111,19 +119,27 @@ export async function GET() {
     </div>
   </div>`;
 
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "Gestión de Cartera <onboarding@resend.dev>",
-      to: [destino],
+  // --- Envío con Nodemailer + SMTP Office 365 ---
+  const transporter = nodemailer.createTransport({
+    host: "smtp.office365.com",
+    port: 587,
+    secure: false,
+    auth: { user: smtpUser, pass: smtpPass },
+    tls: { ciphers: "SSLv3" },
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"Gestión de Cartera" <${smtpUser}>`,
+      to: destino,
       subject: `Alertas de cartera — ${alertas.length} activas (${criticas} críticas)`,
       html,
-    }),
-  });
-  const data = await r.json();
-  if (!r.ok) {
-    return Response.json({ ok: false, error: data?.message || "Error al enviar con Resend.", detalle: data }, { status: 500 });
+    });
+    return Response.json({ ok: true, alertas: alertas.length, destino });
+  } catch (err) {
+    return Response.json(
+      { ok: false, error: err?.message || "Error al enviar.", code: err?.code || null },
+      { status: 500 }
+    );
   }
-  return Response.json({ ok: true, alertas: alertas.length, destino });
 }
