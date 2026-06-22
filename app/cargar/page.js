@@ -23,6 +23,10 @@ export default function Cargar() {
   const [resumen, setResumen] = useState(null);
   const [soloLectura, setSoloLectura] = useState(false);
 
+  // Estado del envío del reporte diario a directivos
+  const [envioEstado, setEnvioEstado] = useState("idle"); // idle | enviando | listo | error
+  const [envioMsg, setEnvioMsg] = useState("");
+
   useEffect(() => {
     getPerfil().then((p) => setSoloLectura(esSoloLectura(p?.rol))).catch(() => {});
   }, []);
@@ -34,6 +38,8 @@ export default function Cargar() {
       setEstado("idle");
       setMensaje("");
       setResumen(null);
+      setEnvioEstado("idle");
+      setEnvioMsg("");
     }
   }
 
@@ -161,6 +167,27 @@ export default function Cargar() {
     }
   }
 
+  async function enviarReporteDirectivos() {
+    if (envioEstado === "enviando" || soloLectura) return;
+    setEnvioEstado("enviando");
+    setEnvioMsg("Enviando reporte a los directivos…");
+    try {
+      const r = await fetch("/api/enviar-reporte-diario");
+      const data = await r.json();
+      if (data.ok) {
+        const dest = (data.destinatarios || []).join(", ");
+        setEnvioEstado("listo");
+        setEnvioMsg(`Reporte enviado a: ${dest}${data.cc ? ` (con copia a ${data.cc})` : ""}.`);
+      } else {
+        setEnvioEstado("error");
+        setEnvioMsg(data.error || "No se pudo enviar el reporte.");
+      }
+    } catch (err) {
+      setEnvioEstado("error");
+      setEnvioMsg("Error de conexión al enviar el reporte.");
+    }
+  }
+
   return (
     <AppShell active="cargar" titulo="Cargar archivo de Siesa" subtitulo="Sube el Excel diario de cartera">
       {soloLectura && (
@@ -201,7 +228,32 @@ export default function Cargar() {
               <li><span>Clientes</span><b>{num(resumen.clientes_totales)}</b></li>
               <li><span>Documentos guardados</span><b>{num(resumen.total_documentos)}</b></li>
             </ul>
-            <Link href="/dashboard" className="btn btn-primary">Ver el dashboard</Link>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
+              <Link href="/dashboard" className="btn btn-primary">Ver el dashboard</Link>
+              <button
+                className="btn btn-primary"
+                onClick={enviarReporteDirectivos}
+                disabled={envioEstado === "enviando" || soloLectura}
+                style={{ background: "#15a36b" }}
+              >
+                {envioEstado === "enviando" ? "Enviando…" : "📨 Enviar reporte a directivos"}
+              </button>
+              {envioMsg && (
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: envioEstado === "listo" ? "#15a36b" : envioEstado === "error" ? "#d23b3b" : "#5b6b86",
+                  }}
+                >
+                  {envioMsg}
+                </span>
+              )}
+            </div>
+            <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+              El reporte se envía al Gerente de Suministros y al Director Financiero, con copia a la auxiliar de cartera.
+            </p>
           </div>
         )}
       </div>
