@@ -17,7 +17,7 @@
   --texto-suave: #5b6b86;
   --borde: #e3e9f4;
 
-  /* estados de KPI (los usaremos más adelante) */
+  /* estados de KPI */
   --verde: #15a36b;
   --amarillo: #d9a400;
   --rojo: #d23b3b;
@@ -52,14 +52,7 @@ a { color: inherit; text-decoration: none; }
   padding: 0 24px;
 }
 
-/* ---------- Barra superior ---------- */
-.topbar {
-  background: var(--blanco);
-  border-bottom: 1px solid var(--borde);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
+/* ---------- Barra superior (landing pública, si la usas) ---------- */
 .topbar-inner {
   display: flex;
   align-items: center;
@@ -89,7 +82,6 @@ a { color: inherit; text-decoration: none; }
   padding: 88px 0 96px;
 }
 .hero::after {
-  /* patrón de puntos sutil, guiño al logo */
   content: "";
   position: absolute;
   inset: 0;
@@ -206,7 +198,7 @@ a { color: inherit; text-decoration: none; }
 .footer strong { color: var(--blanco); }
 .footer .credit { font-size: 14px; }
 
-/* ---------- Login ---------- */
+/* ---------- Login (estilos legacy, el login nuevo usa su propio CSS inline) ---------- */
 .auth-wrap {
   min-height: 100dvh;
   display: grid;
@@ -230,19 +222,6 @@ a { color: inherit; text-decoration: none; }
 .auth-title { font-size: 22px; color: var(--azul); font-weight: 800; }
 .auth-sub { color: var(--texto-suave); margin-top: 6px; font-size: 15px; }
 .auth-form { margin-top: 26px; text-align: left; display: grid; gap: 16px; }
-.field { display: grid; gap: 7px; }
-.field span { font-size: 13px; font-weight: 600; color: var(--texto); }
-.field input {
-  height: 46px;
-  border: 1px solid var(--borde);
-  border-radius: 11px;
-  padding: 0 14px;
-  font-size: 15px;
-  background: var(--gris-cl);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.field input:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(0,55,138,0.12); background: var(--blanco); }
 .auth-btn { width: 100%; margin-top: 4px; }
 .auth-error {
   color: var(--rojo); font-size: 14px; font-weight: 600;
@@ -250,18 +229,25 @@ a { color: inherit; text-decoration: none; }
 }
 .auth-hint { margin-top: 22px; font-size: 13px; color: var(--texto-suave); }
 
-/* ---------- App shell (topbar horizontal) ---------- */
+/* ==========================================================
+   APP SHELL — Topbar horizontal + contenido
+   ========================================================== */
 .loading { min-height: 100dvh; display: grid; place-items: center; color: var(--texto-suave); }
 .app-shell { display: flex; flex-direction: column; min-height: 100dvh; }
 
-/* --- TOPBAR: logo (izq) + menú centrado + usuario (der) --- */
+/* --- TOPBAR: logo (izq) + menú + usuario (der) ---
+   FIX: el menú usa flex-start para que el primer ítem (Dashboard)
+   nunca quede escondido detrás del logo. flex-shrink:0 en cada
+   ítem evita que se compriman; overflow-x:auto permite scroll
+   horizontal si la pantalla es angosta.
+   ---------------------------------------------------------- */
 .topbar {
   background: linear-gradient(90deg, #00378a 0%, #00276a 100%);
   color: var(--blanco);
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   padding: 10px 28px;
   position: sticky;
   top: 0;
@@ -271,32 +257,34 @@ a { color: inherit; text-decoration: none; }
 .topbar-brand {
   display: flex; align-items: center; gap: 10px;
   font-weight: 800; font-size: 18px; color: var(--blanco);
-  letter-spacing: .2px;
+  letter-spacing: .2px; flex-shrink: 0;
 }
 .topbar-brand img { border-radius: 6px; display: block; }
 
-/* Menú horizontal centrado */
+/* Menú horizontal — alineado a la izquierda, scroll si no cabe */
 .topnav {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
+  min-width: 0;
 }
 .topnav::-webkit-scrollbar { display: none; }
 .topnav-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 7px;
+  padding: 9px 12px;
   border-radius: 10px;
-  color: rgba(255,255,255,0.82);
+  color: rgba(255,255,255,0.78);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: background .15s ease, color .15s ease, transform .15s ease;
 }
 .topnav-item:hover {
@@ -311,18 +299,23 @@ a { color: inherit; text-decoration: none; }
 .topnav-item.on::after {
   content: "";
   position: absolute;
-  left: 14px; right: 14px; bottom: 4px;
+  left: 12px; right: 12px; bottom: 3px;
   height: 3px; border-radius: 3px;
   background: var(--oro);
 }
+
+/* Ícono SVG (Lucide) dentro de cada ítem del menú */
 .topnav-ico {
-  font-size: 16px; line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   transition: transform .2s ease;
 }
-.topnav-item:hover .topnav-ico { transform: scale(1.15); }
+.topnav-item:hover .topnav-ico { transform: scale(1.12); }
 
 /* Cluster derecho: campana + usuario */
-.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
 
 /* --- Cuerpo principal --- */
 .main { background: var(--gris-cl); display: flex; flex-direction: column; flex: 1; }
@@ -333,7 +326,7 @@ a { color: inherit; text-decoration: none; }
 .app-title { font-size: 22px; color: var(--azul); font-weight: 800; }
 .app-date { color: var(--texto-suave); font-size: 14px; margin-top: 2px; }
 
-/* Chip de usuario (ahora dentro de la topbar) */
+/* Chip de usuario (dentro de la topbar) */
 .user-chip { display: flex; align-items: center; gap: 10px; }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%;
@@ -352,6 +345,7 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700; font-size: 12px;
   padding: 8px 12px; border-radius: 9px; cursor: pointer;
   transition: background .15s ease;
+  display: inline-flex; align-items: center;
 }
 .logout:hover { background: rgba(255,255,255,0.22); }
 .app-body { padding: 28px; }
@@ -536,59 +530,7 @@ table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; table-la
 .upload-resumen li span { color: var(--texto-suave); }
 .upload-resumen li b { color: var(--texto); }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 920px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .kpi-8 { grid-template-columns: repeat(2, 1fr); }
-  .charts-2 { grid-template-columns: 1fr; }
-  .ficha-grid { grid-template-columns: 1fr; }
-  .form-gestion { grid-template-columns: 1fr; }
-  .hist-item { grid-template-columns: 1fr; gap: 4px; }
-  .cards { grid-template-columns: repeat(2, 1fr); }
-  .tabla-wrap { max-height: none; }
-
-  /* Topbar responsive: brand arriba a la izq, usuario a la der, menú en fila inferior scrollable */
-  .topbar {
-    grid-template-columns: auto auto;
-    grid-template-areas:
-      "brand right"
-      "nav   nav";
-    padding: 10px 14px;
-    gap: 10px;
-  }
-  .topbar-brand { grid-area: brand; }
-  .topbar-right { grid-area: right; justify-self: end; }
-  .topnav {
-    grid-area: nav;
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .topnav-item { padding: 8px 12px; font-size: 13px; }
-  .topnav-item.on::after { left: 12px; right: 12px; }
-}
-@media (max-width: 600px) {
-  .container { padding: 0 18px; }
-  .hero { padding: 64px 0 72px; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-  .kpi-8 { grid-template-columns: 1fr 1fr; }
-  .cards { grid-template-columns: 1fr; }
-  .badge { display: none; }
-  .footer-inner { flex-direction: column; align-items: flex-start; text-align: left; }
-  .app-top { padding: 14px 16px; flex-wrap: wrap; gap: 12px; }
-  .app-body { padding: 16px; }
-  .user-meta { display: none; }
-  .topnav-label { display: none; }       /* en móvil chiquito, solo el ícono */
-  .topnav-item { padding: 8px 10px; }
-  .topnav-ico { font-size: 18px; }
-}
-/* =========================================================
-   AGREGAR ESTE BLOQUE AL FINAL de app/globals.css
-   (justo antes del último cierre de @media o al final del archivo)
-   --- Estilos para tarjetas de Etapa de Cobranza ---
-   ========================================================= */
-
+/* ---------- Etapas de cobranza ---------- */
 .etapas-resumen {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -637,11 +579,54 @@ table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; table-la
 .etapa-cifras b { font-size: 22px; font-weight: 800; }
 .etapa-cifras .muted { font-size: 11px; }
 
-/* Responsive: 2x2 en tablet, 1 columna en celular */
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
 @media (max-width: 920px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .kpi-8 { grid-template-columns: repeat(2, 1fr); }
+  .charts-2 { grid-template-columns: 1fr; }
+  .ficha-grid { grid-template-columns: 1fr; }
+  .form-gestion { grid-template-columns: 1fr; }
+  .hist-item { grid-template-columns: 1fr; gap: 4px; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .tabla-wrap { max-height: none; }
   .etapas-resumen { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 520px) {
-  .etapas-resumen { grid-template-columns: 1fr; }
+
+  /* Topbar responsive: logo + usuario arriba, menú scrollable abajo */
+  .topbar {
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      "brand right"
+      "nav   nav";
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .topbar-brand { grid-area: brand; }
+  .topbar-right { grid-area: right; justify-self: end; }
+  .topnav {
+    grid-area: nav;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .topnav-item { padding: 8px 10px; font-size: 12px; }
+  .topnav-item.on::after { left: 10px; right: 10px; }
 }
 
+@media (max-width: 600px) {
+  .container { padding: 0 18px; }
+  .hero { padding: 64px 0 72px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .kpi-8 { grid-template-columns: 1fr 1fr; }
+  .cards { grid-template-columns: 1fr; }
+  .badge { display: none; }
+  .footer-inner { flex-direction: column; align-items: flex-start; text-align: left; }
+  .app-top { padding: 14px 16px; flex-wrap: wrap; gap: 12px; }
+  .app-body { padding: 16px; }
+  .user-meta { display: none; }
+  .topnav-label { display: none; }
+  .topnav-item { padding: 8px 10px; }
+  .etapas-resumen { grid-template-columns: 1fr; }
+}
