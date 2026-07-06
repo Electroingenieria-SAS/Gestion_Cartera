@@ -6,6 +6,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "../../lib/supabase";
 import { getAlertas } from "../../lib/alertas";
+import {
+  LayoutDashboard,
+  Upload,
+  ClipboardList,
+  TrendingUp,
+  Wallet,
+  Users,
+  Handshake,
+  Bell,
+  ShieldCheck,
+  LogOut,
+} from "lucide-react";
 
 const ROLES = {
   auxiliar: "Auxiliar de cartera",
@@ -15,15 +27,15 @@ const ROLES = {
 
 // Menú principal horizontal. "soloSupervisor" se muestra únicamente a supervisores.
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "📊", href: "/dashboard" },
-  { id: "cargar", label: "Cargar", icon: "📤", href: "/cargar" },
-  { id: "plan", label: "Plan diario", icon: "📋", href: "/plan" },
-  { id: "prediccion", label: "Predicción IA", icon: "🔮", href: "/prediccion" },
-  { id: "cartera", label: "Cartera", icon: "💰", href: "/cartera" },
-  { id: "clientes", label: "Clientes", icon: "👥", href: "/clientes" },
-  { id: "acuerdos", label: "Acuerdos", icon: "🤝", href: "/acuerdos" },
-  { id: "alertas", label: "Alertas", icon: "🔔", href: "/alertas" },
-  { id: "auditoria", label: "Auditoría", icon: "🔍", href: "/auditoria", soloSupervisor: true },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+  { id: "cargar", label: "Cargar", icon: Upload, href: "/cargar" },
+  { id: "plan", label: "Plan diario", icon: ClipboardList, href: "/plan" },
+  { id: "prediccion", label: "Predicción", icon: TrendingUp, href: "/prediccion" },
+  { id: "cartera", label: "Cartera", icon: Wallet, href: "/cartera" },
+  { id: "clientes", label: "Clientes", icon: Users, href: "/clientes" },
+  { id: "acuerdos", label: "Acuerdos", icon: Handshake, href: "/acuerdos" },
+  { id: "alertas", label: "Alertas", icon: Bell, href: "/alertas" },
+  { id: "auditoria", label: "Auditoría", icon: ShieldCheck, href: "/auditoria", soloSupervisor: true },
 ];
 
 // Estructura común (topbar horizontal + título de página) para todas las páginas internas.
@@ -87,24 +99,24 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
         </Link>
 
         <nav className="topnav" aria-label="Menú principal">
-          {navVisible.map((item) => (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={`topnav-item ${active === item.id ? "on" : ""}`}
-            >
-              <span className="topnav-ico">{item.icon}</span>
-              <span className="topnav-label">{item.label}</span>
-            </Link>
-          ))}
+          {navVisible.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className={`topnav-item ${active === item.id ? "on" : ""}`}
+              >
+                <Icon size={18} strokeWidth={2} className="topnav-ico" />
+                <span className="topnav-label">{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="topbar-right">
           <Link href="/alertas" className="bell" aria-label="Alertas">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
+            <Bell size={22} strokeWidth={2} />
             {alertas > 0 && <span className="bell-count">{alertas > 99 ? "99+" : alertas}</span>}
           </Link>
           <div className="user-chip">
@@ -113,7 +125,10 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
               <strong>{perfil.nombre}</strong>
               <span>{ROLES[perfil.rol] || perfil.rol}</span>
             </div>
-            <button className="logout" onClick={salir} title="Cerrar sesión">Salir</button>
+            <button className="logout" onClick={salir} title="Cerrar sesión">
+              <LogOut size={16} strokeWidth={2} style={{ marginRight: 4 }} />
+              Salir
+            </button>
           </div>
         </div>
       </header>
