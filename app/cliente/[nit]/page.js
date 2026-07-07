@@ -10,7 +10,16 @@ import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos } from "../../../lib/format";
 
 const TIPOS = ["Llamada", "WhatsApp", "Correo", "Visita"];
-const RESULTADOS = ["Contactado", "No contesta", "Número errado", "Compromiso de pago", "Pago parcial", "Pago total", "Requiere seguimiento"];
+const RESULTADOS = [
+  "Contactado",
+  "No contesta",
+  "Número errado",
+  "Compromiso de pago",
+  "Pago parcial",
+  "Pago total",
+  "Requiere seguimiento",
+  "Trasladado a seguro",
+];
 
 export default function FichaCliente() {
   const nit = decodeURIComponent(useParams().nit || "");
@@ -19,6 +28,7 @@ export default function FichaCliente() {
   const [contacto, setContacto] = useState({ telefono: "", correo: "" });
   const [historial, setHistorial] = useState([]);
   const [pred, setPred] = useState(null);
+  const [enSeguro, setEnSeguro] = useState(false);
   const [usuario, setUsuario] = useState({ id: null, nombre: "", rol: "consulta" });
   const soloLectura = usuario.rol === "consulta";
 
@@ -27,18 +37,32 @@ export default function FichaCliente() {
   const [obs, setObs] = useState("");
   const [fechaComp, setFechaComp] = useState("");
   const [valorComp, setValorComp] = useState("");
+  const [archivoPDF, setArchivoPDF] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState(null);
 
   async function cargarTodo() {
     const r = await getResumenCliente(nit);
     setResumen(r);
-    const { data: cli } = await supabase.from("clientes").select("telefono, correo").eq("nit", nit).single();
-    if (cli) setContacto({ telefono: cli.telefono || "", correo: cli.correo || "" });
-    const { data: hist } = await supabase.from("gestiones").select("*").eq("cliente_nit", nit).order("fecha", { ascending: false });
+
+    const { data: cli } = await supabase
+      .from("clientes")
+      .select("telefono, correo, en_seguro")
+      .eq("nit", nit)
+      .single();
+    if (cli) {
+      setContacto({ telefono: cli.telefono || "", correo: cli.correo || "" });
+      setEnSeguro(cli.en_seguro || false);
+    }
+
+    const { data: hist } = await supabase
+      .from("gestiones")
+      .select("*")
+      .eq("cliente_nit", nit)
+      .order("fecha", { ascending: false });
     setHistorial(hist || []);
 
-    // Predicción de pago (usa el RESULTADO de la última gestión).
+    // Predicción de pago
     const { data: acu } = await supabase.from("acuerdos_pago").select("estado").eq("cliente_nit", nit);
     const cumplidos = (acu || []).filter((a) => a.estado === "Cumplido").length;
     const incumplidos = (acu || []).filter((a) => a.estado === "Incumplido").length;
@@ -82,27 +106,85 @@ export default function FichaCliente() {
     }
     setGuardando(true);
     try {
+      // 1. Subir PDF a Storage si hay uno seleccionado
+      let archivoUrl = null;
+      if (archivoPDF) {
+        const ext = archivoPDF.name.split(".").pop() || "pdf";
+        const ruta = `${nit}/${Date.now()}_${archivoPDF.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const { error: errUpload } = await supabase.storage
+          .from("gestiones-adjuntos")
+          .upload(ruta, archivoPDF, { contentType: archivoPDF.type || "application/pdf" });
+        if (errUpload) throw new Error("Error al subir el archivo: " + errUpload.message);
+        const { data: urlData } = supabase.storage.from("gestiones-adjuntos").getPublicUrl(ruta);
+        archivoUrl = urlData?.publicUrl || ruta;
+      }
+
+      // 2. Insertar la gestión
+      const payload = {
+        cliente_nit: nit,
+        tipo,
+        resultado,
+        observacion: obs.trim(),
+        usuario_id: usuario.id,
+        usuario_nombre: usuario.nombre,
+      };
+      if (archivoUrl) payload.archivo_url = archivoUrl;
+
       const { data: g, error: e1 } = await supabase
         .from("gestiones")
-        .insert({ cliente_nit: nit, tipo, resultado, observacion: obs.trim(), usuario_id: usuario.id, usuario_nombre: usuario.nombre })
+        .insert(payload)
         .select("id")
         .single();
       if (e1) throw e1;
 
+      // 3. Crear acuerdo de pago si aplica
       if (resultado === "Compromiso de pago") {
         const { error: e2 } = await supabase.from("acuerdos_pago").insert({
-          cliente_nit: nit, gestion_id: g.id, fecha_compromiso: fechaComp, valor_comprometido: Number(valorComp) || 0, estado: "Pendiente",
+          cliente_nit: nit,
+          gestion_id: g.id,
+          fecha_compromiso: fechaComp,
+          valor_comprometido: Number(valorComp) || 0,
+          estado: "Pendiente",
         });
         if (e2) throw e2;
       }
-      setObs(""); setFechaComp(""); setValorComp(""); setResultado("Contactado"); setTipo("Llamada");
-      setAviso({ tipo: "ok", txt: "Gestión registrada correctamente." });
+
+      // 4. Marcar/desmarcar en_seguro en el cliente
+      if (resultado === "Trasladado a seguro") {
+        await supabase.from("clientes").update({ en_seguro: true }).eq("nit", nit);
+      }
+
+      // Limpiar formulario
+      setObs("");
+      setFechaComp("");
+      setValorComp("");
+      setResultado("Contactado");
+      setTipo("Llamada");
+      setArchivoPDF(null);
+      // Limpiar el input file visualmente
+      const fileInput = document.getElementById("pdf-adjunto");
+      if (fileInput) fileInput.value = "";
+
+      setAviso({ tipo: "ok", txt: resultado === "Trasladado a seguro" ? "Gestión registrada. Cliente marcado como 'En seguro'." : "Gestión registrada correctamente." });
       await cargarTodo();
     } catch (err) {
       setAviso({ tipo: "error", txt: "Error al guardar: " + (err?.message || "desconocido") });
     } finally {
       setGuardando(false);
     }
+  }
+
+  // Descargar archivo adjunto de una gestión del historial
+  async function descargarAdjunto(url) {
+    // Si es URL pública, abrir directamente
+    if (url.startsWith("http")) {
+      window.open(url, "_blank");
+      return;
+    }
+    // Si es ruta interna, generar URL firmada (válida 1 hora)
+    const { data, error } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(url, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else setAviso({ tipo: "error", txt: "No se pudo obtener el archivo." });
   }
 
   if (estado === "cargando") {
@@ -115,6 +197,18 @@ export default function FichaCliente() {
     <AppShell active="plan" titulo={resumen?.nombre || nit} subtitulo={`NIT ${nit}`}>
       <Link href="/plan" className="volver">← Volver al plan diario</Link>
 
+      {/* Banner "En seguro" visible si el cliente está marcado */}
+      {enSeguro && (
+        <div style={{
+          background: "#eef0ff", border: "1px solid #c5caed", color: "#3b42a0",
+          borderRadius: "var(--radio)", padding: "14px 18px", marginBottom: 18,
+          fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontSize: 20 }}>🛡️</span>
+          Este cliente está marcado como <b>«En manos del seguro»</b>. El cobro lo gestiona la aseguradora.
+        </div>
+      )}
+
       <div className="ficha-grid">
         <div className="panel">
           <h3>Datos generales</h3>
@@ -122,6 +216,9 @@ export default function FichaCliente() {
           <div className="dato"><span>Cliente</span><b>{resumen?.nombre || "—"}</b></div>
           <div className="dato"><span>Ciudad</span><b>{resumen?.ciudad || "—"}</b></div>
           <div className="dato"><span>Vendedor</span><b>{resumen?.vendedor || "—"}</b></div>
+          {enSeguro && (
+            <div className="dato"><span>Estado de cobro</span><b style={{ color: "#3b42a0" }}>En manos del seguro</b></div>
+          )}
           <div className="contacto-edit">
             {soloLectura ? (
               <>
@@ -160,7 +257,7 @@ export default function FichaCliente() {
         <div className="panel" style={{ marginTop: 18 }}>
           <div className="pred-panel">
             <div>
-              <h3 style={{ marginBottom: 4 }}>Predicción de pago (IA)</h3>
+              <h3 style={{ marginBottom: 4 }}>Predicción de pago</h3>
               <p className="muted">{pred.recomendacion}</p>
             </div>
             <div className="pred-num">
@@ -214,11 +311,46 @@ export default function FichaCliente() {
             </>
           )}
         </div>
+
+        {/* Aviso visual cuando se selecciona "Trasladado a seguro" */}
+        {resultado === "Trasladado a seguro" && (
+          <div style={{
+            marginTop: 14, background: "#eef0ff", border: "1px solid #c5caed", color: "#3b42a0",
+            borderRadius: 10, padding: "12px 14px", fontSize: 13,
+          }}>
+            Al guardar, este cliente quedará marcado como <b>«En manos del seguro»</b>.
+            Se recomienda adjuntar el soporte (carta, acta o comunicado de la aseguradora).
+          </div>
+        )}
+
         <label className="field" style={{ marginTop: 14 }}>
           <span>Observación (mínimo 20 caracteres)</span>
           <textarea rows={3} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ej: Cliente se compromete a pagar el saldo el 30/06/2026." />
           <small className="muted">{obs.trim().length}/20</small>
         </label>
+
+        {/* Upload de PDF (opcional, disponible en cualquier gestión) */}
+        <label className="field" style={{ marginTop: 10 }}>
+          <span>Adjuntar archivo PDF (opcional)</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <input
+              id="pdf-adjunto"
+              type="file"
+              accept=".pdf"
+              onChange={(e) => setArchivoPDF(e.target.files?.[0] || null)}
+              style={{
+                border: "1px dashed var(--borde)", borderRadius: 10, padding: "10px 14px",
+                background: "var(--gris-cl)", fontSize: 13, cursor: "pointer", maxWidth: 360,
+              }}
+            />
+            {archivoPDF && (
+              <span className="muted" style={{ fontSize: 12 }}>
+                {archivoPDF.name} ({(archivoPDF.size / 1024).toFixed(0)} KB)
+              </span>
+            )}
+          </div>
+        </label>
+
         {aviso && <div className={`upload-msg ${aviso.tipo === "ok" ? "listo" : "error"}`}>{aviso.txt}</div>}
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={guardarGestion} disabled={guardando}>
           {guardando ? "Guardando…" : "Guardar gestión"}
@@ -236,7 +368,24 @@ export default function FichaCliente() {
                 <div className="hist-fecha">{new Date(h.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</div>
                 <div className="hist-cuerpo">
                   <span className="pill" style={{ background: "var(--gris-cl)", color: "var(--azul)" }}>{h.tipo}</span>
-                  <span className="pill" style={{ background: "#eef6ff", color: "var(--azul)" }}>{h.resultado}</span>
+                  <span className="pill" style={{
+                    background: h.resultado === "Trasladado a seguro" ? "#eef0ff" : "#eef6ff",
+                    color: h.resultado === "Trasladado a seguro" ? "#3b42a0" : "var(--azul)",
+                  }}>
+                    {h.resultado}
+                  </span>
+                  {h.archivo_url && (
+                    <button
+                      onClick={() => descargarAdjunto(h.archivo_url)}
+                      style={{
+                        background: "#f3f6fb", border: "1px solid var(--borde)", borderRadius: 8,
+                        padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "var(--azul)",
+                        cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      📎 Ver PDF adjunto
+                    </button>
+                  )}
                   <p>{h.observacion}</p>
                   <small className="muted">Registrado por {h.usuario_nombre || "—"}</small>
                 </div>
