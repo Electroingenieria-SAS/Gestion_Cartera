@@ -6,6 +6,7 @@ import AppShell from "../components/AppShell";
 import { getCargaActual } from "../../lib/cartera";
 import { pesos, num } from "../../lib/format";
 import { exportarExcel, exportarPDF, hoyISO } from "../../lib/exportar";
+import { supabase } from "../../lib/supabase";
 
 const COL_CAT = {
   "Vigente": "#15a36b", "Vencido 1 a 30": "#ddbc00",
@@ -36,7 +37,10 @@ export default function Cartera() {
     setEnviando(true);
     setEnvioMsg(null);
     try {
-      const r = await fetch("/api/enviar-cartera-vencida");
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch("/api/enviar-cartera-vencida", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
       const data = await r.json();
       if (data.ok) setEnvioMsg({ tipo: "listo", txt: `Reporte enviado a ${data.destino}: ${data.facturas} facturas vencidas de ${data.clientes} clientes.` });
       else setEnvioMsg({ tipo: "error", txt: data.error || "No se pudo enviar." });
