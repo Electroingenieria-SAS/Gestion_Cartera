@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { getAlertas } from "../../lib/alertas";
+import { supabase } from "../../lib/supabase";
 
 const NIVEL = {
   critica: { label: "Crítica", color: "var(--rojo)", bg: "#fdeaea" },
@@ -22,7 +23,10 @@ export default function Alertas() {
     setEnviando(true);
     setEnvioMsg(null);
     try {
-      const r = await fetch("/api/enviar-alertas");
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch("/api/enviar-alertas", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
       const data = await r.json();
       if (data.ok) setEnvioMsg({ tipo: "listo", txt: `Correo enviado a ${data.destino} con ${data.alertas} alertas.` });
       else setEnvioMsg({ tipo: "error", txt: data.error || "No se pudo enviar." });
@@ -81,7 +85,7 @@ export default function Alertas() {
           <span className="muted" style={{ alignSelf: "center" }}>{visibles.length} alertas mostradas</span>
         </div>
         {visibles.length === 0 ? (
-          <p className="muted">No hay alertas en este nivel. 🎉</p>
+          <p className="muted">No hay alertas en este nivel.</p>
         ) : (
           <div className="alert-lista">
             {visibles.map((a, i) => (
