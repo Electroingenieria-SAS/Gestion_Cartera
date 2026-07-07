@@ -172,7 +172,10 @@ export default function Cargar() {
     setEnvioEstado("enviando");
     setEnvioMsg("Enviando reporte a los directivos…");
     try {
-      const r = await fetch("/api/enviar-reporte-diario");
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch("/api/enviar-reporte-diario", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
       const data = await r.json();
       if (data.ok) {
         const dest = (data.destinatarios || []).join(", ");
@@ -237,7 +240,7 @@ export default function Cargar() {
                 disabled={envioEstado === "enviando" || soloLectura}
                 style={{ background: "#15a36b" }}
               >
-                {envioEstado === "enviando" ? "Enviando…" : "📨 Enviar reporte a directivos"}
+                {envioEstado === "enviando" ? "Enviando…" : "Enviar reporte a directivos"}
               </button>
               {envioMsg && (
                 <span
