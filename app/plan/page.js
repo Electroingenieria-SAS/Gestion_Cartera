@@ -7,14 +7,13 @@ import { getCargaActual } from "../../lib/cartera";
 import { supabase } from "../../lib/supabase";
 import { calcularScore, nivelPrioridad } from "../../lib/scoring";
 import { pesos, num } from "../../lib/format";
-import { exportarExcel, exportarPDF, hoyISO } from "../../lib/exportar";
+import { exportarExcelEstilizado, exportarPDF, hoyISO } from "../../lib/exportar";
 import { etapaCobranza, ETAPAS_ORDEN } from "../../lib/etapas";
 
 export default function PlanDiario() {
   const [estado, setEstado] = useState("cargando");
   const [lista, setLista] = useState([]);
   const [verTodos, setVerTodos] = useState(false);
-  // Filtro por etapa de cobranza. null = todas.
   const [etapaSel, setEtapaSel] = useState(null);
 
   useEffect(() => {
@@ -56,7 +55,6 @@ export default function PlanDiario() {
     })();
   }, []);
 
-  // Resumen por etapa: cuántos clientes y cuánto valor vencido hay en cada una.
   const resumenEtapas = useMemo(() => {
     const r = {};
     ETAPAS_ORDEN.forEach((e) => { r[e.id] = { etapa: e, count: 0, vencido: 0 }; });
@@ -64,20 +62,46 @@ export default function PlanDiario() {
     return r;
   }, [lista]);
 
-  // Aplica filtros: prioridad (alta/crítica) + etapa seleccionada (si la hay).
   const prioritarios = lista.filter((f) => f.score >= 40);
   let mostradas = verTodos ? lista : prioritarios;
   if (etapaSel) mostradas = mostradas.filter((f) => f.etapa.id === etapaSel);
 
-  function exportarAExcel() {
+  async function exportarAExcel() {
+    const fechaHoy = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+    const columnas = [
+      { header: "#",               key: "n",       width: 6,  formato: "numero" },
+      { header: "Cliente",         key: "cliente", width: 34, bold: true },
+      { header: "NIT",             key: "nit",     width: 14 },
+      { header: "Ciudad",          key: "ciudad",  width: 16 },
+      { header: "Vendedor",        key: "vendedor", width: 22 },
+      { header: "Etapa",           key: "etapa",   width: 16 },
+      { header: "Valor vencido",   key: "vencido", width: 20, formato: "moneda" },
+      { header: "Días mora",       key: "dias",    width: 12, formato: "numero" },
+      { header: "Última gestión",  key: "ultima",  width: 16 },
+      { header: "Score",           key: "score",   width: 10, formato: "numero" },
+      { header: "Prioridad",       key: "prio",    width: 14 },
+    ];
+
     const filas = mostradas.map((f, i) => ({
-      "#": i + 1, Cliente: f.nombre || f.nit, NIT: f.nit, Ciudad: f.ciudad || "",
-      Etapa: f.etapa.label,
-      "Valor vencido": Number(f.vencido) || 0, "Días mora": f.dias,
-      "Última gestión": f.ultima ? new Date(f.ultima).toLocaleDateString("es-CO") : "Nunca",
-      Score: f.score, Prioridad: f.prio.label,
+      n: i + 1,
+      cliente: f.nombre || f.nit,
+      nit: f.nit,
+      ciudad: f.ciudad || "",
+      vendedor: f.vendedor || "",
+      etapa: f.etapa.label,
+      vencido: Number(f.vencido) || 0,
+      dias: f.dias,
+      ultima: f.ultima ? new Date(f.ultima).toLocaleDateString("es-CO") : "Nunca",
+      score: f.score,
+      prio: f.prio.label,
     }));
-    exportarExcel(`PlanDiario_${hoyISO()}`, filas, "Plan diario");
+
+    await exportarExcelEstilizado(`PlanDiario_${hoyISO()}`, filas, columnas, {
+      nombreHoja: "Plan diario",
+      titulo: "Plan Diario de Cobranza — Electroingeniería S.A.S.",
+      subtitulo: `${fechaHoy}  ·  ${mostradas.length} clientes  ·  Generado desde Gestión de Cartera`,
+    });
   }
 
   function exportarAPDF() {
@@ -114,7 +138,6 @@ export default function PlanDiario() {
           Hoy debes gestionar prioritariamente <b>{prioritarios.length}</b> clientes (prioridad alta o crítica).
         </div>
 
-        {/* === Resumen por etapa de cobranza === */}
         <div className="etapas-resumen">
           {ETAPAS_ORDEN.map((e) => {
             const r = resumenEtapas[e.id];
