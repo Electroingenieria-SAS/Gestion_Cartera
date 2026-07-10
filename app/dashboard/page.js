@@ -250,13 +250,13 @@ export default function Dashboard() {
             {/* 1. Distribución por días de mora */}
             <div style={S.panel}>
               <h3 style={S.h3}>Distribución por días de mora</h3>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={data.distMora} margin={{ left: 0, right: 8 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.distMora} margin={{ left: 0, right: 8, top: 20, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="#eef2f8" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => "$" + v + " M"} />
                   <Tooltip formatter={(v) => "$" + num(v) + " M"} />
-                  <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="valor" radius={[6, 6, 0, 0]} label={{ position: "top", fontSize: 11, fontWeight: 700, fill: "#0f1b33", formatter: (v) => "$" + num(v) + " M" }}>
                     {data.distMora.map((d) => <Cell key={d.cat} fill={COL[d.cat]} />)}
                   </Bar>
                 </BarChart>
@@ -295,7 +295,7 @@ export default function Dashboard() {
             {/* 3. Cartera vencida por vendedor */}
             <div style={S.panel}>
               <h3 style={S.h3}>Vencida por vendedor (mill.)</h3>
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={data.vend} layout="vertical" margin={{ left: 4, right: 12 }}>
                   <CartesianGrid horizontal={false} stroke="#eef2f8" />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => "$" + v} />
