@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [fVend, setFVend] = useState("");
   const [fCiudad, setFCiudad] = useState("");
   const [fBusqueda, setFBusqueda] = useState("");
+  const [fCliente, setFCliente] = useState(null); // { nit, nombre } — cross-filter por clic en tabla
 
   useEffect(() => {
     setMounted(true);
@@ -87,9 +88,10 @@ export default function Dashboard() {
     return docs.filter((d) =>
       (!fVend || d.vendedor === fVend) &&
       (!fCiudad || d.ciudad === fCiudad) &&
+      (!fCliente || d.nit === fCliente.nit) &&
       (!b || `${d.nombre_cliente || ""} ${d.nit || ""}`.toLowerCase().includes(b))
     );
-  }, [docs, fVend, fCiudad, fBusqueda]);
+  }, [docs, fVend, fCiudad, fBusqueda, fCliente]);
 
   const data = useMemo(() => {
     const cMap = {};
@@ -161,7 +163,7 @@ export default function Dashboard() {
     return { kpis, distMora, donut, vend, top10Dificil, matriz };
   }, [filtrados]);
 
-  const filtroActivo = !!(fVend || fCiudad || fBusqueda);
+  const filtroActivo = !!(fVend || fCiudad || fBusqueda || fCliente);
 
   let contenido;
   if (estado === "cargando") {
@@ -241,8 +243,27 @@ export default function Dashboard() {
             <option value="">Todas las ciudades</option>
             {ciudades.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
-          {filtroActivo && <button className="btn-ghost-light" onClick={() => { setFVend(""); setFCiudad(""); setFBusqueda(""); }}>Limpiar</button>}
+          {filtroActivo && <button className="btn-ghost-light" onClick={() => { setFVend(""); setFCiudad(""); setFBusqueda(""); setFCliente(null); }}>Limpiar</button>}
         </div>
+
+        {/* Banner de cross-filter cuando se da clic en un cliente */}
+        {fCliente && (
+          <div style={{
+            marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            background: "#eef6ff", border: "1px solid #cfe2fb", borderRadius: 12, padding: "12px 18px",
+          }}>
+            <span style={{ fontSize: 14, color: "var(--azul)" }}>
+              Filtrando por: <b>{fCliente.nombre}</b> <span style={{ color: "#5b6b86" }}>(NIT {fCliente.nit})</span>
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link href={`/cliente/${encodeURIComponent(fCliente.nit)}`} className="btn-mini">Ir a ficha</Link>
+              <button onClick={() => setFCliente(null)} style={{
+                background: "#fff", border: "1px solid var(--borde)", borderRadius: 8,
+                padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "var(--texto)", cursor: "pointer",
+              }}>Quitar filtro</button>
+            </div>
+          </div>
+        )}
 
         {/* ── Fila de 3 gráficos ── */}
         {mounted && (
@@ -367,8 +388,8 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {data.matriz.map((c) => (
-                    <tr key={c.nit}>
-                      <td><b>{c.nombre || c.nit}</b><br /><span className="muted" style={{ fontSize: 11 }}>{c.nit}</span></td>
+                    <tr key={c.nit} onClick={() => setFCliente({ nit: c.nit, nombre: c.nombre || c.nit })} style={{ cursor: "pointer" }} title="Clic para filtrar por este cliente">
+                      <td><b style={{ color: "var(--azul)" }}>{c.nombre || c.nit}</b><br /><span className="muted" style={{ fontSize: 11 }}>{c.nit}</span></td>
                       <td style={{ textAlign: "right" }}>{monto(c.buckets["Vigente"])}</td>
                       <td style={{ textAlign: "right" }}>{monto(c.buckets["Vencido 1 a 30"])}</td>
                       <td style={{ textAlign: "right" }}>{monto(c.buckets["Vencido 31 a 60"])}</td>
@@ -404,8 +425,8 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {data.top10Dificil.map((c) => (
-                    <tr key={c.nit}>
-                      <td><b>{c.nombre || c.nit}</b><br /><span className="muted" style={{ fontSize: 11 }}>{c.nit}</span></td>
+                    <tr key={c.nit} onClick={() => setFCliente({ nit: c.nit, nombre: c.nombre || c.nit })} style={{ cursor: "pointer" }} title="Clic para filtrar por este cliente">
+                      <td><b style={{ color: "var(--azul)" }}>{c.nombre || c.nit}</b><br /><span className="muted" style={{ fontSize: 11 }}>{c.nit}</span></td>
                       <td style={{ textAlign: "right", fontWeight: 600 }}>{pesos(c.vencido)}</td>
                       <td style={{ textAlign: "right", color: "#d23b3b", fontWeight: 700 }}>{pesos(c.buckets["Vencido 91 >"])}</td>
                       <td style={{ textAlign: "right" }}>{num(c.dias)}</td>
