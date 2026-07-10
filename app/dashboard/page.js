@@ -266,15 +266,28 @@ export default function Dashboard() {
             {/* 2. Estado de cartera (donut 3 segmentos) */}
             <div style={S.panel}>
               <h3 style={S.h3}>Estado de cartera</h3>
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
-                  <Pie data={data.donut} dataKey="value" nameKey="name" innerRadius={62} outerRadius={90} paddingAngle={3}
-                    label={({ name, value }) => pct((value / donutTotal) * 100)}
+                  <Pie data={data.donut} dataKey="value" nameKey="name" innerRadius={55} outerRadius={82} paddingAngle={3}
+                    cx="50%" cy="45%"
+                    label={({ cx, cy, midAngle, outerRadius, name, value }) => {
+                      const RADIAN = Math.PI / 180;
+                      const r = outerRadius + 28;
+                      const x = cx + r * Math.cos(-midAngle * RADIAN);
+                      const y = cy + r * Math.sin(-midAngle * RADIAN);
+                      const p = pct((value / donutTotal) * 100);
+                      return (
+                        <text x={x} y={y} textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" style={{ fontSize: 12, fontWeight: 700, fill: "#0f1b33" }}>
+                          {p}
+                        </text>
+                      );
+                    }}
+                    labelLine={{ stroke: "#b0bec5", strokeWidth: 1 }}
                   >
                     {data.donut.map((d) => <Cell key={d.name} fill={d.color} />)}
                   </Pie>
                   <Tooltip formatter={(v) => millones(v)} />
-                  <Legend />
+                  <Legend verticalAlign="bottom" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
