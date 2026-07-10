@@ -9,7 +9,7 @@ import { getResumenCliente } from "../../../lib/cartera";
 import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos } from "../../../lib/format";
 
-const TIPOS = ["Llamada", "WhatsApp", "Correo", "Visita"];
+const TIPOS = ["Llamada", "WhatsApp", "Correo", "Correo físico (carta)", "Visita"];
 const RESULTADOS = [
   "Contactado",
   "No contesta",
@@ -18,6 +18,7 @@ const RESULTADOS = [
   "Pago parcial",
   "Pago total",
   "Requiere seguimiento",
+  "En espera",
   "Trasladado a seguro",
 ];
 
