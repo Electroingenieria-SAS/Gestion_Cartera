@@ -116,8 +116,8 @@ export default function FichaCliente() {
           .from("gestiones-adjuntos")
           .upload(ruta, archivoPDF, { contentType: archivoPDF.type || "application/pdf" });
         if (errUpload) throw new Error("Error al subir el archivo: " + errUpload.message);
-        const { data: urlData } = supabase.storage.from("gestiones-adjuntos").getPublicUrl(ruta);
-        archivoUrl = urlData?.publicUrl || ruta;
+        // Guardar solo la ruta interna (NO la URL pública, porque el bucket es privado)
+        archivoUrl = ruta;
       }
 
       // 2. Insertar la gestión
@@ -177,15 +177,17 @@ export default function FichaCliente() {
 
   // Descargar archivo adjunto de una gestión del historial
   async function descargarAdjunto(url) {
-    // Si es URL pública, abrir directamente
-    if (url.startsWith("http")) {
-      window.open(url, "_blank");
-      return;
-    }
-    // Si es ruta interna, generar URL firmada (válida 1 hora)
-    const { data, error } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(url, 3600);
+    // Extraer la ruta del archivo — compatible con URLs públicas viejas y rutas nuevas
+    let ruta = url;
+    // Si es una URL completa de Supabase, extraer solo la parte después del bucket
+    const marcador = "/gestiones-adjuntos/";
+    const idx = url.indexOf(marcador);
+    if (idx !== -1) ruta = url.substring(idx + marcador.length);
+
+    // Generar URL firmada (válida 1 hora) — funciona con buckets privados
+    const { data, error } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(ruta, 3600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-    else setAviso({ tipo: "error", txt: "No se pudo obtener el archivo." });
+    else setAviso({ tipo: "error", txt: "No se pudo obtener el archivo. Verifica que existe en Storage." });
   }
 
   if (estado === "cargando") {
