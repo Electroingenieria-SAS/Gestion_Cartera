@@ -42,6 +42,15 @@ export default function FichaCliente() {
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState(null);
 
+  // Edición de gestiones (solo supervisor)
+  const [editId, setEditId] = useState(null);
+  const [editTipo, setEditTipo] = useState("");
+  const [editResultado, setEditResultado] = useState("");
+  const [editObs, setEditObs] = useState("");
+  const [editFechaComp, setEditFechaComp] = useState("");
+  const [editValorComp, setEditValorComp] = useState("");
+  const [editGuardando, setEditGuardando] = useState(false);
+
   async function cargarTodo() {
     const r = await getResumenCliente(nit);
     setResumen(r);
@@ -177,17 +186,72 @@ export default function FichaCliente() {
 
   // Descargar archivo adjunto de una gestión del historial
   async function descargarAdjunto(url) {
-    // Extraer la ruta del archivo — compatible con URLs públicas viejas y rutas nuevas
     let ruta = url;
-    // Si es una URL completa de Supabase, extraer solo la parte después del bucket
     const marcador = "/gestiones-adjuntos/";
     const idx = url.indexOf(marcador);
     if (idx !== -1) ruta = url.substring(idx + marcador.length);
-
-    // Generar URL firmada (válida 1 hora) — funciona con buckets privados
     const { data, error } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(ruta, 3600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
     else setAviso({ tipo: "error", txt: "No se pudo obtener el archivo. Verifica que existe en Storage." });
+  }
+
+  // Iniciar edición de una gestión (solo supervisor)
+  function iniciarEdicion(h) {
+    setEditId(h.id);
+    setEditTipo(h.tipo);
+    setEditResultado(h.resultado);
+    setEditObs(h.observacion || "");
+    setEditFechaComp("");
+    setEditValorComp("");
+  }
+
+  function cancelarEdicion() {
+    setEditId(null);
+  }
+
+  async function guardarEdicion() {
+    if (editObs.trim().length < 20) {
+      setAviso({ tipo: "error", txt: "La observación debe tener al menos 20 caracteres." });
+      return;
+    }
+    if (editResultado === "Compromiso de pago" && (!editFechaComp || !editValorComp)) {
+      setAviso({ tipo: "error", txt: "Para un compromiso de pago ingresa la fecha y el valor." });
+      return;
+    }
+    setEditGuardando(true);
+    setAviso(null);
+    try {
+      // 1. Actualizar la gestión
+      await supabase.from("gestiones").update({
+        tipo: editTipo,
+        resultado: editResultado,
+        observacion: editObs.trim(),
+      }).eq("id", editId);
+
+      // 2. Si cambió a "Compromiso de pago", crear el acuerdo
+      if (editResultado === "Compromiso de pago" && editFechaComp && editValorComp) {
+        await supabase.from("acuerdos_pago").insert({
+          cliente_nit: nit,
+          gestion_id: editId,
+          fecha_compromiso: editFechaComp,
+          valor_comprometido: Number(editValorComp) || 0,
+          estado: "Pendiente",
+        });
+      }
+
+      // 3. Si cambió a "Trasladado a seguro", marcar el cliente
+      if (editResultado === "Trasladado a seguro") {
+        await supabase.from("clientes").update({ en_seguro: true }).eq("nit", nit);
+      }
+
+      setEditId(null);
+      setAviso({ tipo: "ok", txt: "Gestión actualizada correctamente." + (editResultado === "Compromiso de pago" ? " Se creó el acuerdo de pago." : "") });
+      await cargarTodo();
+    } catch (err) {
+      setAviso({ tipo: "error", txt: "Error al guardar: " + (err?.message || "desconocido") });
+    } finally {
+      setEditGuardando(false);
+    }
   }
 
   if (estado === "cargando") {
@@ -393,34 +457,107 @@ export default function FichaCliente() {
         <h3>Historial de gestiones ({historial.length})</h3>
         {historial.length === 0 ? <p className="muted">Aún no hay gestiones registradas para este cliente.</p> : (
           <div className="historial">
-            {historial.map((h) => (
-              <div className="hist-item" key={h.id}>
-                <div className="hist-fecha">{new Date(h.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</div>
-                <div className="hist-cuerpo">
-                  <span className="pill" style={{ background: "var(--gris-cl)", color: "var(--azul)" }}>{h.tipo}</span>
-                  <span className="pill" style={{
-                    background: h.resultado === "Trasladado a seguro" ? "#eef0ff" : "#eef6ff",
-                    color: h.resultado === "Trasladado a seguro" ? "#3b42a0" : "var(--azul)",
-                  }}>
-                    {h.resultado}
-                  </span>
-                  {h.archivo_url && (
-                    <button
-                      onClick={() => descargarAdjunto(h.archivo_url)}
-                      style={{
-                        background: "#f3f6fb", border: "1px solid var(--borde)", borderRadius: 8,
-                        padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "var(--azul)",
-                        cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
-                      }}
-                    >
-                      {/\.(jpg|jpeg|png)$/i.test(h.archivo_url) ? "🖼️ Ver imagen adjunta" : "📎 Ver PDF adjunto"}
-                    </button>
-                  )}
-                  <p>{h.observacion}</p>
-                  <small className="muted">Registrado por {h.usuario_nombre || "—"}</small>
+            {historial.map((h) => {
+              const esEditando = editId === h.id;
+
+              if (esEditando) {
+                return (
+                  <div className="hist-item" key={h.id} style={{ background: "#eef6ff", borderRadius: 12, padding: 16, display: "block", border: "1px solid #cfe2fb" }}>
+                    <p style={{ fontSize: 12, color: "var(--texto-suave)", marginBottom: 10 }}>
+                      Editando gestión del {new Date(h.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                    <div className="form-gestion">
+                      <label className="field"><span>Tipo de gestión</span>
+                        <select value={editTipo} onChange={(e) => setEditTipo(e.target.value)}>
+                          {TIPOS.map((t) => <option key={t}>{t}</option>)}
+                        </select>
+                      </label>
+                      <label className="field"><span>Resultado</span>
+                        <select value={editResultado} onChange={(e) => setEditResultado(e.target.value)}>
+                          {RESULTADOS.map((r) => <option key={r}>{r}</option>)}
+                        </select>
+                      </label>
+                      {editResultado === "Compromiso de pago" && (
+                        <>
+                          <label className="field"><span>Fecha compromiso</span>
+                            <input type="date" value={editFechaComp} onChange={(e) => setEditFechaComp(e.target.value)} />
+                          </label>
+                          <label className="field"><span>Valor compromiso</span>
+                            <input type="number" value={editValorComp} onChange={(e) => setEditValorComp(e.target.value)} placeholder="$" />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                    <label className="field" style={{ marginTop: 12 }}><span>Observación</span>
+                      <textarea rows={3} value={editObs} onChange={(e) => setEditObs(e.target.value)} />
+                    </label>
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button
+                        onClick={guardarEdicion}
+                        disabled={editGuardando}
+                        style={{
+                          background: "var(--azul)", color: "#fff", border: "none", borderRadius: 8,
+                          padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        }}
+                      >
+                        {editGuardando ? "Guardando…" : "Guardar cambios"}
+                      </button>
+                      <button
+                        onClick={cancelarEdicion}
+                        style={{
+                          background: "var(--gris-cl)", color: "var(--texto)", border: "1px solid var(--borde)",
+                          borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="hist-item" key={h.id}>
+                  <div className="hist-fecha">{new Date(h.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</div>
+                  <div className="hist-cuerpo">
+                    <span className="pill" style={{ background: "var(--gris-cl)", color: "var(--azul)" }}>{h.tipo}</span>
+                    <span className="pill" style={{
+                      background: h.resultado === "Trasladado a seguro" ? "#eef0ff" : "#eef6ff",
+                      color: h.resultado === "Trasladado a seguro" ? "#3b42a0" : "var(--azul)",
+                    }}>
+                      {h.resultado}
+                    </span>
+                    {h.archivo_url && (
+                      <button
+                        onClick={() => descargarAdjunto(h.archivo_url)}
+                        style={{
+                          background: "#f3f6fb", border: "1px solid var(--borde)", borderRadius: 8,
+                          padding: "4px 10px", fontSize: 12, fontWeight: 600, color: "var(--azul)",
+                          cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
+                        }}
+                      >
+                        {/\.(jpg|jpeg|png)$/i.test(h.archivo_url) ? "🖼️ Ver imagen adjunta" : "📎 Ver PDF adjunto"}
+                      </button>
+                    )}
+                    {/* Botón editar: solo visible para supervisor */}
+                    {usuario.rol === "supervisor" && (
+                      <button
+                        onClick={() => iniciarEdicion(h)}
+                        style={{
+                          background: "transparent", border: "1px solid var(--borde)", borderRadius: 8,
+                          padding: "4px 10px", fontSize: 11, fontWeight: 600, color: "var(--texto-suave)",
+                          cursor: "pointer", marginLeft: "auto",
+                        }}
+                      >
+                        ✏️ Editar
+                      </button>
+                    )}
+                    <p>{h.observacion}</p>
+                    <small className="muted">Registrado por {h.usuario_nombre || "—"}</small>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
