@@ -9,7 +9,7 @@ import { getResumenCliente } from "../../../lib/cartera";
 import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos } from "../../../lib/format";
 
-const TIPOS = ["Llamada", "WhatsApp", "Correo", "Correo físico (carta)", "Visita"];
+const TIPOS = ["Llamada", "WhatsApp", "Correo", "Correo físico (carta)", "Visita", "Gestión interna", "Conciliación"];
 const RESULTADOS = [
   "Contactado",
   "No contesta",
@@ -332,12 +332,12 @@ export default function FichaCliente() {
 
         {/* Upload de PDF (opcional, disponible en cualquier gestión) */}
         <label className="field" style={{ marginTop: 10 }}>
-          <span>Adjuntar archivo PDF (opcional)</span>
+          <span>Adjuntar archivo (opcional) — PDF o imagen</span>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <input
               id="pdf-adjunto"
               type="file"
-              accept=".pdf"
+              accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => setArchivoPDF(e.target.files?.[0] || null)}
               style={{
                 border: "1px dashed var(--borde)", borderRadius: 10, padding: "10px 14px",
@@ -384,7 +384,7 @@ export default function FichaCliente() {
                         cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
                       }}
                     >
-                      📎 Ver PDF adjunto
+                      {/\.(jpg|jpeg|png)$/i.test(h.archivo_url) ? "🖼️ Ver imagen adjunta" : "📎 Ver PDF adjunto"}
                     </button>
                   )}
                   <p>{h.observacion}</p>
