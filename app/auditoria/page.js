@@ -1,283 +1,269 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
-import { getPerfil } from "../../lib/auth";
-import { num } from "../../lib/format";
+import { pesos, num } from "../../lib/format";
 
-export default function Auditoria() {
+// Colores por resultado de gestión
+const RES_COL = {
+  "Contactado": "var(--verde)", "Compromiso de pago": "var(--verde)",
+  "Pago parcial": "var(--verde)", "Pago total": "var(--verde)",
+  "No contesta": "var(--amarillo)", "Número errado": "var(--amarillo)",
+  "Requiere seguimiento": "var(--amarillo)", "En espera": "var(--amarillo)",
+  "Trasladado a seguro": "#3b42a0",
+};
+
+export default function Trazabilidad() {
   const [estado, setEstado] = useState("cargando");
   const [registros, setRegistros] = useState([]);
-  const [adjuntos, setAdjuntos] = useState([]);
   const [busqueda, setBusqueda] = useState("");
-  const [tab, setTab] = useState("actividad"); // "actividad" | "adjuntos"
+  const [expandido, setExpandido] = useState(null); // id del registro expandido
+  const [filtroTipo, setFiltroTipo] = useState("todos"); // "todos" | "gestiones" | "sistema"
 
   useEffect(() => {
     (async () => {
-      const perfil = await getPerfil();
-      if (!perfil || perfil.rol !== "supervisor") {
-        setEstado("denegado");
-        return;
-      }
-
-      // Cargar auditoría
-      const { data: audit } = await supabase
-        .from("auditoria")
-        .select("*")
-        .order("fecha", { ascending: false })
-        .limit(300);
-      setRegistros(audit || []);
-
-      // Cargar gestiones que tienen archivo adjunto
+      // 1. Traer gestiones con todos los detalles
       const { data: gest } = await supabase
         .from("gestiones")
-        .select("id, fecha, cliente_nit, resultado, archivo_url, usuario_nombre")
-        .not("archivo_url", "is", null)
+        .select("id, fecha, cliente_nit, tipo, resultado, observacion, archivo_url, usuario_nombre")
+        .order("fecha", { ascending: false })
+        .limit(300);
+
+      // 2. Traer eventos de sistema (cargas, etc.) de auditoría
+      const { data: audit } = await supabase
+        .from("auditoria")
+        .select("id, fecha, usuario_nombre, accion, detalle")
+        .not("accion", "eq", "Registró gestión") // evitar duplicados con gestiones
         .order("fecha", { ascending: false })
         .limit(100);
 
-      // Traer nombres de clientes para las gestiones con adjuntos
+      // 3. Traer nombres de clientes
       const nits = [...new Set((gest || []).map((g) => g.cliente_nit))];
-      let mapaNombres = {};
+      let nombres = {};
       if (nits.length > 0) {
-        const { data: clis } = await supabase
-          .from("clientes")
-          .select("nit, nombre")
-          .in("nit", nits);
-        for (const c of clis || []) mapaNombres[c.nit] = c.nombre;
+        const { data: cli } = await supabase.from("clientes").select("nit, nombre").in("nit", nits);
+        for (const c of cli || []) nombres[c.nit] = c.nombre;
       }
 
-      setAdjuntos(
-        (gest || []).map((g) => ({
-          ...g,
-          nombre_cliente: mapaNombres[g.cliente_nit] || g.cliente_nit,
-        }))
-      );
+      // 4. Unificar en una sola timeline
+      const timeline = [];
 
+      for (const g of gest || []) {
+        timeline.push({
+          id: "g-" + g.id,
+          fecha: g.fecha,
+          esGestion: true,
+          usuario: g.usuario_nombre || "—",
+          accion: `${g.tipo} → ${g.resultado}`,
+          cliente_nit: g.cliente_nit,
+          nombre_cliente: nombres[g.cliente_nit] || g.cliente_nit,
+          tipo: g.tipo,
+          resultado: g.resultado,
+          observacion: g.observacion,
+          archivo_url: g.archivo_url,
+        });
+      }
+
+      for (const a of audit || []) {
+        timeline.push({
+          id: "a-" + a.id,
+          fecha: a.fecha,
+          esGestion: false,
+          usuario: a.usuario_nombre || "—",
+          accion: a.accion,
+          detalle: a.detalle,
+        });
+      }
+
+      // Ordenar por fecha descendente
+      timeline.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+      setRegistros(timeline);
       setEstado("ok");
     })();
   }, []);
 
   const filtrados = useMemo(() => {
     const b = busqueda.trim().toLowerCase();
-    if (!b) return registros;
-    return registros.filter((r) =>
-      `${r.usuario_nombre || ""} ${r.accion || ""} ${r.detalle || ""}`.toLowerCase().includes(b)
-    );
-  }, [registros, busqueda]);
+    return registros.filter((r) => {
+      if (filtroTipo === "gestiones" && !r.esGestion) return false;
+      if (filtroTipo === "sistema" && r.esGestion) return false;
+      if (!b) return true;
+      const texto = `${r.usuario} ${r.accion} ${r.nombre_cliente || ""} ${r.cliente_nit || ""} ${r.detalle || ""} ${r.observacion || ""}`.toLowerCase();
+      return texto.includes(b);
+    });
+  }, [registros, busqueda, filtroTipo]);
 
-  const adjuntosFiltrados = useMemo(() => {
-    const b = busqueda.trim().toLowerCase();
-    if (!b) return adjuntos;
-    return adjuntos.filter((a) =>
-      `${a.nombre_cliente || ""} ${a.cliente_nit || ""} ${a.usuario_nombre || ""} ${a.resultado || ""}`.toLowerCase().includes(b)
-    );
-  }, [adjuntos, busqueda]);
+  function toggleExpandir(id) {
+    setExpandido(expandido === id ? null : id);
+  }
 
-  // Abrir PDF en pestaña nueva (visor del navegador, sin descargar)
-  async function verPDF(url) {
-    if (url.startsWith("http")) {
-      window.open(url, "_blank");
-      return;
-    }
-    const { data, error } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(url, 3600);
+  // Ver adjunto con URL firmada
+  async function verAdjunto(url) {
+    let ruta = url;
+    const marcador = "/gestiones-adjuntos/";
+    const idx = url.indexOf(marcador);
+    if (idx !== -1) ruta = url.substring(idx + marcador.length);
+    const { data } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(ruta, 3600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   }
 
-  // Forzar descarga del PDF
-  async function descargarPDF(url, nombreCliente) {
-    let urlFinal = url;
-    if (!url.startsWith("http")) {
-      const { data } = await supabase.storage.from("gestiones-adjuntos").createSignedUrl(url, 3600);
-      if (!data?.signedUrl) return;
-      urlFinal = data.signedUrl;
-    }
-    // Descargar forzando con un <a> temporal
-    const a = document.createElement("a");
-    a.href = urlFinal;
-    a.download = `adjunto_${nombreCliente.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
+  const conteoGest = registros.filter((r) => r.esGestion).length;
+  const conteoSist = registros.filter((r) => !r.esGestion).length;
 
   let contenido;
   if (estado === "cargando") {
-    contenido = <p className="muted">Cargando registro…</p>;
-  } else if (estado === "denegado") {
+    contenido = <p className="muted">Cargando trazabilidad…</p>;
+  } else if (registros.length === 0) {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">❑</div>
-        <h2>Solo para supervisores</h2>
-        <p>El registro de auditoría únicamente puede ser consultado por usuarios con rol de supervisor.</p>
+        <div className="empty-ico">◔</div>
+        <h2>Sin actividad registrada</h2>
+        <p>Cuando el equipo cargue cartera o registre gestiones, aparecerán aquí.</p>
       </div>
     );
   } else {
     contenido = (
       <>
-        {/* Tabs: Actividad | Documentos adjuntos */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 18 }}>
-          <button
-            onClick={() => setTab("actividad")}
-            style={{
-              padding: "10px 20px", borderRadius: "10px 10px 0 0", fontWeight: 700, fontSize: 14,
-              border: "1px solid var(--borde)", borderBottom: tab === "actividad" ? "2px solid var(--azul)" : "1px solid var(--borde)",
-              background: tab === "actividad" ? "var(--blanco)" : "var(--gris-cl)",
-              color: tab === "actividad" ? "var(--azul)" : "var(--texto-suave)",
-              cursor: "pointer",
-            }}
-          >
-            Registro de actividad
-          </button>
-          <button
-            onClick={() => setTab("adjuntos")}
-            style={{
-              padding: "10px 20px", borderRadius: "10px 10px 0 0", fontWeight: 700, fontSize: 14,
-              border: "1px solid var(--borde)", borderBottom: tab === "adjuntos" ? "2px solid var(--azul)" : "1px solid var(--borde)",
-              background: tab === "adjuntos" ? "var(--blanco)" : "var(--gris-cl)",
-              color: tab === "adjuntos" ? "var(--azul)" : "var(--texto-suave)",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-            }}
-          >
-            Documentos adjuntos
-            {adjuntos.length > 0 && (
-              <span style={{
-                background: "var(--azul)", color: "#fff", fontSize: 11, fontWeight: 800,
-                padding: "2px 7px", borderRadius: 999, minWidth: 20, textAlign: "center",
-              }}>
-                {adjuntos.length}
-              </span>
-            )}
-          </button>
-        </div>
-
         <div className="filtros">
-          <input
-            placeholder={tab === "actividad" ? "Buscar por usuario, acción o detalle…" : "Buscar por cliente, NIT o usuario…"}
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
+          <input placeholder="Buscar por cliente, usuario, acción…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+          <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+            <option value="todos">Todo ({num(registros.length)})</option>
+            <option value="gestiones">Gestiones de clientes ({num(conteoGest)})</option>
+            <option value="sistema">Eventos del sistema ({num(conteoSist)})</option>
+          </select>
         </div>
+        <div className="resumen-filtro"><span><b>{num(filtrados.length)}</b> registros</span></div>
 
-        {tab === "actividad" ? (
-          <>
-            <div className="resumen-filtro"><span><b>{num(filtrados.length)}</b> registros (últimos 300)</span></div>
-            {filtrados.length === 0 ? (
-              <div className="empty">
-                <div className="empty-ico">❑</div>
-                <h2>Sin actividad registrada todavía</h2>
-                <p>Aquí aparecerá cada carga, gestión y acuerdo que realice el equipo.</p>
-              </div>
-            ) : (
-              <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
-                <div className="tabla-wrap">
-                  <table className="data">
-                    <colgroup>
-                      <col style={{ width: "20%" }} /><col style={{ width: "20%" }} />
-                      <col style={{ width: "22%" }} /><col style={{ width: "38%" }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtrados.map((r) => (
-                        <tr key={r.id}>
-                          <td>{new Date(r.fecha).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</td>
-                          <td><b>{r.usuario_nombre || "—"}</b></td>
-                          <td>{r.accion}</td>
-                          <td className="muted">{r.detalle}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="resumen-filtro"><span><b>{num(adjuntosFiltrados.length)}</b> documentos adjuntos</span></div>
-            {adjuntosFiltrados.length === 0 ? (
-              <div className="empty">
-                <div className="empty-ico">📎</div>
-                <h2>Sin documentos adjuntos</h2>
-                <p>Cuando la auxiliar adjunte un PDF a una gestión, aparecerá aquí para consulta y descarga.</p>
-              </div>
-            ) : (
-              <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
-                <div className="tabla-wrap">
-                  <table className="data">
-                    <colgroup>
-                      <col style={{ width: "18%" }} /><col style={{ width: "16%" }} />
-                      <col style={{ width: "22%" }} /><col style={{ width: "18%" }} />
-                      <col style={{ width: "26%" }} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>Fecha</th><th>Usuario</th><th>Cliente</th><th>Resultado</th><th>Archivo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {adjuntosFiltrados.map((a) => (
-                        <tr key={a.id}>
-                          <td>{new Date(a.fecha).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</td>
-                          <td><b>{a.usuario_nombre || "—"}</b></td>
-                          <td>
-                            <b>{a.nombre_cliente}</b>
-                            <br />
-                            <span className="muted" style={{ fontSize: 11 }}>{a.cliente_nit}</span>
-                          </td>
-                          <td>
-                            <span className="pill" style={{
-                              background: a.resultado === "Trasladado a seguro" ? "#eef0ff" : "#eef6ff",
-                              color: a.resultado === "Trasladado a seguro" ? "#3b42a0" : "var(--azul)",
-                            }}>
-                              {a.resultado}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              <button
-                                onClick={() => verPDF(a.archivo_url)}
-                                style={{
-                                  background: "#eef6ff", border: "1px solid #cfe2fb", borderRadius: 8,
-                                  padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "var(--azul)",
-                                  cursor: "pointer",
-                                }}
+        <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="tabla-wrap">
+            <table className="data">
+              <colgroup>
+                <col style={{ width: "16%" }} /><col style={{ width: "14%" }} />
+                <col style={{ width: "22%" }} /><col style={{ width: "48%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map((r) => {
+                  const abierto = expandido === r.id;
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => r.esGestion && toggleExpandir(r.id)}
+                      style={{
+                        cursor: r.esGestion ? "pointer" : "default",
+                        background: abierto ? "#eef6ff" : undefined,
+                        verticalAlign: "top",
+                      }}
+                      title={r.esGestion ? "Clic para ver detalles" : undefined}
+                    >
+                      <td>{new Date(r.fecha).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</td>
+                      <td><b>{r.usuario}</b></td>
+                      <td>
+                        {r.esGestion ? (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                            <span className="pill" style={{ background: "var(--gris-cl)", color: "var(--azul)" }}>{r.tipo}</span>
+                            <span className="pill" style={{ background: (RES_COL[r.resultado] || "var(--azul)") + "18", color: RES_COL[r.resultado] || "var(--azul)" }}>{r.resultado}</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: "var(--texto-suave)", fontSize: 13 }}>{r.accion}</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.esGestion ? (
+                          <div>
+                            {/* Resumen de la fila */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <Link
+                                href={`/cliente/${encodeURIComponent(r.cliente_nit)}`}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ color: "var(--azul)", fontWeight: 700, fontSize: 13 }}
                               >
-                                Ver
-                              </button>
-                              <button
-                                onClick={() => descargarPDF(a.archivo_url, a.nombre_cliente)}
-                                style={{
-                                  background: "var(--gris-cl)", border: "1px solid var(--borde)", borderRadius: 8,
-                                  padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "var(--texto)",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                Descargar
-                              </button>
+                                {r.nombre_cliente}
+                              </Link>
+                              <span className="muted" style={{ fontSize: 11 }}>NIT {r.cliente_nit}</span>
+                              {r.archivo_url && (
+                                <span style={{ fontSize: 11, color: "var(--azul)", fontWeight: 600 }}>
+                                  {/\.(jpg|jpeg|png)$/i.test(r.archivo_url) ? "🖼️ con imagen" : "📎 con adjunto"}
+                                </span>
+                              )}
+                              <span style={{ fontSize: 11, color: "var(--texto-suave)", marginLeft: "auto" }}>
+                                {abierto ? "▲ cerrar" : "▼ ver más"}
+                              </span>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+
+                            {/* Detalle expandido */}
+                            {abierto && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  marginTop: 12, padding: "14px 16px",
+                                  background: "#fff", border: "1px solid var(--borde)", borderRadius: 12,
+                                }}
+                              >
+                                <div style={{ fontSize: 13, marginBottom: 10, display: "grid", gap: 6 }}>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <span style={{ color: "var(--texto-suave)", minWidth: 90 }}>Tipo:</span>
+                                    <b>{r.tipo}</b>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <span style={{ color: "var(--texto-suave)", minWidth: 90 }}>Resultado:</span>
+                                    <b>{r.resultado}</b>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <span style={{ color: "var(--texto-suave)", minWidth: 90 }}>Observación:</span>
+                                    <span>{r.observacion || "—"}</span>
+                                  </div>
+                                </div>
+
+                                {r.archivo_url && (
+                                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                                    <button
+                                      onClick={() => verAdjunto(r.archivo_url)}
+                                      style={{
+                                        background: "#eef6ff", border: "1px solid #cfe2fb", borderRadius: 8,
+                                        padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "var(--azul)", cursor: "pointer",
+                                      }}
+                                    >
+                                      {/\.(jpg|jpeg|png)$/i.test(r.archivo_url) ? "🖼️ Ver imagen" : "📎 Ver PDF"}
+                                    </button>
+                                  </div>
+                                )}
+
+                                <div style={{ marginTop: 10 }}>
+                                  <Link
+                                    href={`/cliente/${encodeURIComponent(r.cliente_nit)}`}
+                                    className="btn-mini"
+                                  >
+                                    Ir a ficha del cliente
+                                  </Link>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="muted">{r.detalle}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </>
     );
   }
 
   return (
-    <AppShell active="auditoria" titulo="Auditoría" subtitulo="Registro de actividad del equipo">
+    <AppShell active="auditoria" titulo="Trazabilidad" subtitulo="Historial completo de gestiones y actividad del equipo">
       {contenido}
     </AppShell>
   );
