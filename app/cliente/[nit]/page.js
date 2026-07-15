@@ -332,6 +332,33 @@ export default function FichaCliente() {
           <small className="muted">{obs.trim().length}/20</small>
         </label>
 
+        {/* Sugerencia inteligente: detecta que la auxiliar menciona pago/fecha pero no usó "Compromiso de pago" */}
+        {resultado !== "Compromiso de pago" && obs.trim().length >= 10 &&
+          /pag(o|ar|ará|a)|compromet|compromiso|fecha|semana|cancel|abono|consign|transfer|gir|plaz|cuota/i.test(obs) && (
+          <div
+            onClick={() => setResultado("Compromiso de pago")}
+            style={{
+              marginTop: 8, padding: "12px 16px", borderRadius: 10, cursor: "pointer",
+              background: "#fff8da", border: "1px solid #f0e2a0", color: "#8a6d00",
+              fontSize: 13, display: "flex", alignItems: "flex-start", gap: 10,
+              transition: "background .15s",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "#fff3c4"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "#fff8da"}
+          >
+            <span style={{ fontSize: 18, lineHeight: 1 }}>💡</span>
+            <div>
+              <b>¿El cliente se comprometió a pagar en una fecha?</b>
+              <p style={{ margin: "4px 0 0", color: "#6b5a00" }}>
+                Cambia el resultado a <b>"Compromiso de pago"</b> para registrar la fecha y el valor. Así el sistema te avisará automáticamente cuando se acerque el vencimiento.
+              </p>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--azul)", marginTop: 6, display: "inline-block" }}>
+                👆 Clic aquí para cambiar a "Compromiso de pago"
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Upload de PDF (opcional, disponible en cualquier gestión) */}
         <label className="field" style={{ marginTop: 10 }}>
           <span>Adjuntar archivo (opcional) — PDF o imagen</span>
