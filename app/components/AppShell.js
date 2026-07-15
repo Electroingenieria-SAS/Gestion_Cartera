@@ -16,6 +16,7 @@ import {
   Handshake,
   Bell,
   ShieldCheck,
+  History,
   LogOut,
 } from "lucide-react";
 
@@ -35,7 +36,7 @@ const NAV = [
   { id: "clientes", label: "Clientes", icon: Users, href: "/clientes" },
   { id: "acuerdos", label: "Acuerdos", icon: Handshake, href: "/acuerdos" },
   { id: "alertas", label: "Alertas", icon: Bell, href: "/alertas" },
-  { id: "auditoria", label: "Auditoría", icon: ShieldCheck, href: "/auditoria", soloSupervisor: true },
+  { id: "auditoria", label: "Trazabilidad", icon: History, href: "/auditoria" },
 ];
 
 // Estructura común (topbar horizontal + título de página) para todas las páginas internas.
