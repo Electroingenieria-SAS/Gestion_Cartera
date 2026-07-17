@@ -182,6 +182,7 @@ export default function PlanDiario() {
           )}
           <button className="btn-ghost-light" onClick={exportarAExcel}>Exportar Excel</button>
           <button className="btn-ghost-light" onClick={exportarAPDF}>Exportar PDF</button>
+          <Link href="/gestion-masiva" className="btn-ghost-light" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}>Gestión masiva (circular)</Link>
           <span className="muted" style={{ alignSelf: "center" }}>Mostrando {mostradas.length} clientes</span>
         </div>
 
