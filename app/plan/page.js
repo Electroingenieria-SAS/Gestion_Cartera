@@ -15,6 +15,7 @@ export default function PlanDiario() {
   const [lista, setLista] = useState([]);
   const [verTodos, setVerTodos] = useState(false);
   const [etapaSel, setEtapaSel] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -63,8 +64,15 @@ export default function PlanDiario() {
   }, [lista]);
 
   const prioritarios = lista.filter((f) => f.score >= 40);
-  let mostradas = verTodos ? lista : prioritarios;
+  // Si hay búsqueda activa, se busca sobre TODA la lista (no solo los prioritarios):
+  // si la auxiliar escribe un NIT, espera encontrarlo aunque no esté priorizado hoy.
+  const hayBusqueda = busqueda.trim().length > 0;
+  let mostradas = (verTodos || hayBusqueda) ? lista : prioritarios;
   if (etapaSel) mostradas = mostradas.filter((f) => f.etapa.id === etapaSel);
+  if (hayBusqueda) {
+    const b = busqueda.trim().toLowerCase();
+    mostradas = mostradas.filter((f) => `${f.nombre || ""} ${f.nit || ""}`.toLowerCase().includes(b));
+  }
 
   async function exportarAExcel() {
     const fechaHoy = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -172,12 +180,22 @@ export default function PlanDiario() {
         </div>
 
         <div className="filtros" style={{ marginTop: 14 }}>
+          <input
+            placeholder="Buscar cliente o NIT…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
           <button className="btn-ghost-light" onClick={() => setVerTodos(!verTodos)}>
             {verTodos ? "Ver solo prioritarios" : `Ver todos (${lista.length})`}
           </button>
           {etapaSel && (
             <button className="btn-ghost-light" onClick={() => setEtapaSel(null)}>
               Quitar filtro de etapa
+            </button>
+          )}
+          {hayBusqueda && (
+            <button className="btn-ghost-light" onClick={() => setBusqueda("")}>
+              Limpiar búsqueda
             </button>
           )}
           <button className="btn-ghost-light" onClick={exportarAExcel}>Exportar Excel</button>
