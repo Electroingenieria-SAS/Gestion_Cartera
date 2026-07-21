@@ -7,7 +7,8 @@ import AppShell from "../../components/AppShell";
 import { supabase } from "../../../lib/supabase";
 import { getResumenCliente } from "../../../lib/cartera";
 import { calcularProbabilidad } from "../../../lib/prediccion";
-import { pesos } from "../../../lib/format";
+import { pesos, formatearMiles, soloNumero } from "../../../lib/format";
+import { numeroALetras } from "../../../lib/numeroALetras";
 
 const TIPOS = ["Llamada", "WhatsApp", "Correo", "Correo físico (carta)", "Visita", "Gestión interna", "Conciliación"];
 const RESULTADOS = [
@@ -110,7 +111,7 @@ export default function FichaCliente() {
       setAviso({ tipo: "error", txt: "La observación debe tener al menos 20 caracteres." });
       return;
     }
-    if (resultado === "Compromiso de pago" && (!fechaComp || !valorComp)) {
+    if (resultado === "Compromiso de pago" && (!fechaComp || soloNumero(valorComp) <= 0)) {
       setAviso({ tipo: "error", txt: "Para un compromiso de pago ingresa la fecha y el valor." });
       return;
     }
@@ -153,7 +154,7 @@ export default function FichaCliente() {
           cliente_nit: nit,
           gestion_id: g.id,
           fecha_compromiso: fechaComp,
-          valor_comprometido: Number(valorComp) || 0,
+          valor_comprometido: soloNumero(valorComp),
           estado: "Pendiente",
         });
         if (e2) throw e2;
@@ -214,7 +215,7 @@ export default function FichaCliente() {
       setAviso({ tipo: "error", txt: "La observación debe tener al menos 20 caracteres." });
       return;
     }
-    if (editResultado === "Compromiso de pago" && (!editFechaComp || !editValorComp)) {
+    if (editResultado === "Compromiso de pago" && (!editFechaComp || soloNumero(editValorComp) <= 0)) {
       setAviso({ tipo: "error", txt: "Para un compromiso de pago ingresa la fecha y el valor." });
       return;
     }
@@ -229,12 +230,12 @@ export default function FichaCliente() {
       }).eq("id", editId);
 
       // 2. Si cambió a "Compromiso de pago", crear el acuerdo
-      if (editResultado === "Compromiso de pago" && editFechaComp && editValorComp) {
+      if (editResultado === "Compromiso de pago" && editFechaComp && soloNumero(editValorComp) > 0) {
         await supabase.from("acuerdos_pago").insert({
           cliente_nit: nit,
           gestion_id: editId,
           fecha_compromiso: editFechaComp,
-          valor_comprometido: Number(editValorComp) || 0,
+          valor_comprometido: soloNumero(editValorComp),
           estado: "Pendiente",
         });
       }
@@ -373,7 +374,19 @@ export default function FichaCliente() {
                 <input type="date" value={fechaComp} onChange={(e) => setFechaComp(e.target.value)} />
               </label>
               <label className="field"><span>Valor compromiso</span>
-                <input type="number" value={valorComp} onChange={(e) => setValorComp(e.target.value)} placeholder="$" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={valorComp}
+                  onChange={(e) => setValorComp(formatearMiles(e.target.value))}
+                  placeholder="$ 0"
+                />
+                <small style={{
+                  marginTop: 4, fontSize: 12, fontWeight: 600, minHeight: 16,
+                  color: valorComp ? "var(--azul)" : "var(--texto-suave)",
+                }}>
+                  {valorComp ? numeroALetras(soloNumero(valorComp)) : "Escribe solo los números; los puntos se ponen solos."}
+                </small>
               </label>
             </>
           )}
@@ -483,7 +496,19 @@ export default function FichaCliente() {
                             <input type="date" value={editFechaComp} onChange={(e) => setEditFechaComp(e.target.value)} />
                           </label>
                           <label className="field"><span>Valor compromiso</span>
-                            <input type="number" value={editValorComp} onChange={(e) => setEditValorComp(e.target.value)} placeholder="$" />
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={editValorComp}
+                              onChange={(e) => setEditValorComp(formatearMiles(e.target.value))}
+                              placeholder="$ 0"
+                            />
+                            <small style={{
+                              marginTop: 4, fontSize: 12, fontWeight: 600, minHeight: 16,
+                              color: editValorComp ? "var(--azul)" : "var(--texto-suave)",
+                            }}>
+                              {editValorComp ? numeroALetras(soloNumero(editValorComp)) : "Escribe solo los números; los puntos se ponen solos."}
+                            </small>
                           </label>
                         </>
                       )}
