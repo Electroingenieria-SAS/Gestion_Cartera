@@ -14,6 +14,7 @@ export default function Prediccion() {
   const [lista, setLista] = useState([]);
   // Filtro por etapa de cobranza. null = todas.
   const [etapaSel, setEtapaSel] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -82,8 +83,16 @@ export default function Prediccion() {
     return r;
   }, [lista]);
 
-  // Lista filtrada por etapa (si la hay).
-  const mostradas = etapaSel ? lista.filter((f) => f.etapa.id === etapaSel) : lista;
+  // Lista filtrada por etapa y por búsqueda (nombre o NIT).
+  const hayBusqueda = busqueda.trim().length > 0;
+  const mostradas = useMemo(() => {
+    let r = etapaSel ? lista.filter((f) => f.etapa.id === etapaSel) : lista;
+    if (hayBusqueda) {
+      const b = busqueda.trim().toLowerCase();
+      r = r.filter((f) => `${f.nombre || ""} ${f.nit || ""}`.toLowerCase().includes(b));
+    }
+    return r;
+  }, [lista, etapaSel, busqueda, hayBusqueda]);
 
   let contenido;
   if (estado === "cargando") {
@@ -137,9 +146,19 @@ export default function Prediccion() {
         </div>
 
         <div className="filtros" style={{ marginTop: 14 }}>
+          <input
+            placeholder="Buscar cliente o NIT…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
           {etapaSel && (
             <button className="btn-ghost-light" onClick={() => setEtapaSel(null)}>
               Quitar filtro de etapa
+            </button>
+          )}
+          {hayBusqueda && (
+            <button className="btn-ghost-light" onClick={() => setBusqueda("")}>
+              Limpiar búsqueda
             </button>
           )}
           <span className="muted" style={{ alignSelf: "center" }}>Mostrando {mostradas.length} clientes</span>
