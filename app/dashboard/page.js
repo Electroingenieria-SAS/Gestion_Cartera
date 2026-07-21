@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
+import BannerCompromisos from "../components/BannerCompromisos";
 import { getCargaActual, getTendencia } from "../../lib/cartera";
 import { getAlertas } from "../../lib/alertas";
 import { supabase } from "../../lib/supabase";
@@ -191,6 +192,8 @@ export default function Dashboard() {
 
     contenido = (
       <>
+        <BannerCompromisos />
+
         {numAlertas > 0 && (
           <Link href="/alertas" className="alert-banner">
             <span>Tienes <b>{numAlertas}</b> alertas que requieren atención</span>
