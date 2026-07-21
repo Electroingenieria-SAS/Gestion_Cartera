@@ -1,0 +1,25 @@
+{
+  "_comentario": "Supuestos del PRONOSTICO DE RECAUDO. Igual que priority_rules.json, aqui se cambia la estrategia sin tocar codigo. Mientras no haya suficiente historia, el sistema usa las 'tasas_iniciales' de abajo. Cuando se acumulen 'semanas_minimas_para_empirico' semanas de cargas, empieza a usar las tasas MEDIDAS de la base de datos y estas dejan de aplicar.",
+
+  "_como_ajustar": "Cada tasa es la fraccion del saldo de ese grupo que se espera recaudar en UNA semana. 0.35 = se espera recaudar el 35%. Pregunta a la auxiliar: 'de cada 100 pesos que estan entre 1 y 30 dias de mora, cuantos entran en una semana?'",
+
+  "tasas_iniciales": {
+    "acuerdos_pactados": 0.65,
+    "por_vencer": 0.45,
+    "Vigente": 0.10,
+    "Vencido 1 a 30": 0.30,
+    "Vencido 31 a 60": 0.15,
+    "Vencido 61 a 90": 0.08,
+    "Vencido 91 >": 0.02
+  },
+
+  "_banda": "Margen de incertidumbre que se muestra al usuario. 0.30 = el rango va de -30% a +30% sobre el valor esperado. Entre menos historia haya, mas ancha debe ser.",
+  "banda_incertidumbre": 0.30,
+  "banda_incertidumbre_con_historia": 0.15,
+
+  "_madurez": "Cuantos periodos medidos se necesitan antes de confiar en las tasas empiricas en vez de las iniciales.",
+  "periodos_minimos_para_empirico": 20,
+
+  "_ventana": "Dias hacia adelante que cubre el pronostico.",
+  "dias_ventana": 7
+}
