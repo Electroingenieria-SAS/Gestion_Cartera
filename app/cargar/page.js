@@ -7,6 +7,7 @@ import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
 import { getPerfil, esSoloLectura } from "../../lib/auth";
 import { millones, num, pct } from "../../lib/format";
+import { calcularRecaudoUltimo } from "../../lib/recaudo";
 
 const COLUMNAS_REQUERIDAS = [
   "Cliente",
@@ -154,9 +155,21 @@ export default function Cargar() {
         if (e3) throw e3;
       }
 
+      // Medir el recaudo real contra la carga anterior.
+      // Si falla (p.ej. todavía no se ha corrido el script 07), la carga
+      // NO se pierde: solo se avisa que la medición quedó pendiente.
+      setMensaje("Midiendo el recaudo del periodo…");
+      let avisoRecaudo = "";
+      try {
+        const periodo = await calcularRecaudoUltimo();
+        if (!periodo) avisoRecaudo = " (primera carga: el recaudo se medirá desde la próxima)";
+      } catch {
+        avisoRecaudo = " (no se pudo medir el recaudo: revisa que el script 07 esté ejecutado en Supabase)";
+      }
+
       setResumen(indic);
       setEstado("listo");
-      setMensaje("¡Carga completada correctamente!");
+      setMensaje("¡Carga completada correctamente!" + avisoRecaudo);
     } catch (err) {
       setEstado("error");
       setMensaje(
