@@ -9,6 +9,13 @@ import { getResumenCliente } from "../../../lib/cartera";
 import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos, formatearMiles, soloNumero } from "../../../lib/format";
 import { numeroALetras } from "../../../lib/numeroALetras";
+import { parseFechaSiesa } from "../../../lib/pronostico";
+
+// Convierte la fecha cruda de Siesa (20260703) a formato legible (03/07/2026).
+function fmtFechaSiesa(v) {
+  const f = parseFechaSiesa(v);
+  return f ? f.toLocaleDateString("es-CO") : "—";
+}
 
 const TIPOS = ["Llamada", "WhatsApp", "Correo", "Correo físico (carta)", "Visita", "Gestión interna", "Conciliación"];
 const RESULTADOS = [
@@ -31,6 +38,7 @@ export default function FichaCliente() {
   const [historial, setHistorial] = useState([]);
   const [pred, setPred] = useState(null);
   const [enSeguro, setEnSeguro] = useState(false);
+  const [verFacturas, setVerFacturas] = useState(false);
   const [usuario, setUsuario] = useState({ id: null, nombre: "", rol: "consulta" });
   const soloLectura = usuario.rol === "consulta";
 
@@ -315,7 +323,64 @@ export default function FichaCliente() {
               <div className="dato"><span>Cartera vigente</span><b style={{ color: "var(--verde)" }}>{pesos(resumen.vigente)}</b></div>
               <div className="dato"><span>Cartera vencida</span><b style={{ color: "var(--rojo)" }}>{pesos(resumen.vencida)}</b></div>
               <div className="dato"><span>Días de mora</span><b>{resumen.dias}</b></div>
-              <div className="dato"><span>Facturas</span><b>{resumen.documentos}</b></div>
+              <div className="dato">
+                <span>Facturas</span>
+                <b>
+                  {resumen.documentos}
+                  {resumen.documentos > 0 && (
+                    <button
+                      onClick={() => setVerFacturas((v) => !v)}
+                      style={{
+                        marginLeft: 10, background: "transparent", border: "none", cursor: "pointer",
+                        color: "var(--azul)", fontSize: 13, fontWeight: 600, padding: 0,
+                      }}
+                    >
+                      {verFacturas ? "▲ ocultar detalle" : "▼ ver detalle"}
+                    </button>
+                  )}
+                </b>
+              </div>
+
+              {verFacturas && resumen.facturas?.length > 0 && (
+                <div style={{ marginTop: 12, borderTop: "1px solid var(--borde)", paddingTop: 12 }}>
+                  <div className="tabla-wrap">
+                    <table className="data" style={{ fontSize: 12.5 }}>
+                      <thead>
+                        <tr>
+                          <th>Documento</th>
+                          <th>Vencimiento</th>
+                          <th style={{ textAlign: "right" }}>Días</th>
+                          <th>Rango</th>
+                          <th style={{ textAlign: "right" }}>Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {resumen.facturas.map((f, i) => {
+                          const vencida = f.categoria && f.categoria !== "Vigente";
+                          return (
+                            <tr key={i}>
+                              <td>{[f.tipo, f.numero].filter(Boolean).join(" ") || "—"}</td>
+                              <td>{fmtFechaSiesa(f.fecha_vencimiento)}</td>
+                              <td style={{ textAlign: "right" }}>{f.dias > 0 ? f.dias : "—"}</td>
+                              <td>
+                                <span className="pill" style={{
+                                  background: vencida ? "var(--rojo)22" : "var(--verde)22",
+                                  color: vencida ? "var(--rojo)" : "var(--verde)",
+                                }}>
+                                  {f.categoria}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: "right", fontWeight: 700, color: vencida ? "var(--rojo)" : "var(--texto)" }}>
+                                {pesos(f.saldo)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
