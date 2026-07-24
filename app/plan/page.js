@@ -9,6 +9,7 @@ import { calcularScore, nivelPrioridad } from "../../lib/scoring";
 import { pesos, num } from "../../lib/format";
 import { exportarExcelEstilizado, exportarPDF, hoyISO } from "../../lib/exportar";
 import { etapaCobranza, ETAPAS_ORDEN } from "../../lib/etapas";
+import { getNitsGestionadosHoy, getNitsConCompromisoVigente } from "../../lib/alertas";
 
 // Encabezado de columna ordenable: clic ordena, otro clic invierte.
 function Th({ col, orden, setOrden, align = "left", children }) {
@@ -39,6 +40,8 @@ export default function PlanDiario() {
   const [verScore, setVerScore] = useState(false);
   const [filtroValor, setFiltroValor] = useState("");
   const [orden, setOrden] = useState({ col: "score", dir: "desc" });
+  const [verOcultos, setVerOcultos] = useState(false);
+  const [ocultosSet, setOcultosSet] = useState(new Set());
 
   useEffect(() => {
     (async () => {
@@ -66,11 +69,25 @@ export default function PlanDiario() {
       const promInc = {};
       for (const a of inc || []) promInc[a.cliente_nit] = (promInc[a.cliente_nit] || 0) + 1;
 
+      // Clientes a ocultar del plan de hoy: ya gestionados hoy, o con compromiso a futuro.
+      const [gestHoy, compVigente] = await Promise.all([
+        getNitsGestionadosHoy(),
+        getNitsConCompromisoVigente(),
+      ]);
+      const ocultar = new Set();
+      for (const nit of gestHoy) ocultar.add(String(nit));
+      for (const nit of compVigente) ocultar.add(String(nit));
+      setOcultosSet(ocultar);
+
       const filas = Object.values(cli).map((c) => {
         const diasSinGestion = ultima[c.nit] ? Math.floor((Date.now() - new Date(ultima[c.nit])) / 86400000) : 9999;
         const score = calcularScore({ diasMora: c.dias, valorVencido: c.vencido, diasSinGestion, promesasIncumplidas: promInc[c.nit] || 0 });
         const etapa = etapaCobranza(c.dias);
-        return { ...c, ultima: ultima[c.nit] || null, score, prio: nivelPrioridad(score), etapa };
+        // Motivo por el que sale de la lista de hoy (para poder explicarlo si se muestran los ocultos).
+        let motivoOculto = null;
+        if (gestHoy.has(String(c.nit))) motivoOculto = "Gestionado hoy";
+        else if (compVigente.has(String(c.nit))) motivoOculto = "Compromiso a futuro";
+        return { ...c, ultima: ultima[c.nit] || null, score, prio: nivelPrioridad(score), etapa, motivoOculto };
       });
 
       filas.sort((a, b) => b.score - a.score);
@@ -86,11 +103,17 @@ export default function PlanDiario() {
     return r;
   }, [lista]);
 
-  const prioritarios = lista.filter((f) => f.score >= 40);
+  // Cuántos clientes están ocultos por haberse atendido hoy o tener compromiso a futuro.
+  const numOcultos = lista.filter((f) => f.motivoOculto).length;
+
+  // Base: por defecto se ocultan los ya atendidos. Con el toggle o la búsqueda se ven todos.
+  const hayBusqueda = busqueda.trim().length > 0;
+  const base = (verOcultos || hayBusqueda) ? lista : lista.filter((f) => !f.motivoOculto);
+
+  const prioritarios = base.filter((f) => f.score >= 40);
   // Si hay búsqueda activa, se busca sobre TODA la lista (no solo los prioritarios):
   // si la auxiliar escribe un NIT, espera encontrarlo aunque no esté priorizado hoy.
-  const hayBusqueda = busqueda.trim().length > 0;
-  let mostradas = (verTodos || hayBusqueda) ? lista : prioritarios;
+  let mostradas = (verTodos || hayBusqueda) ? base : prioritarios;
   if (etapaSel) mostradas = mostradas.filter((f) => f.etapa.id === etapaSel);
   if (hayBusqueda) {
     const b = busqueda.trim().toLowerCase();
@@ -198,6 +221,11 @@ export default function PlanDiario() {
       <>
         <div className="plan-banner">
           Hoy debes gestionar prioritariamente <b>{prioritarios.length}</b> clientes (prioridad alta o crítica).
+          {numOcultos > 0 && !verOcultos && (
+            <span style={{ display: "block", marginTop: 6, fontSize: 13, color: "var(--verde)", fontWeight: 600 }}>
+              ✓ {numOcultos} cliente{numOcultos > 1 ? "s" : ""} ya {numOcultos > 1 ? "salieron" : "salió"} de la lista de hoy (gestionados o con compromiso a futuro).
+            </span>
+          )}
         </div>
 
         <div className="etapas-resumen">
@@ -276,6 +304,11 @@ export default function PlanDiario() {
               Limpiar búsqueda
             </button>
           )}
+          {numOcultos > 0 && (
+            <button className="btn-ghost-light" onClick={() => setVerOcultos((v) => !v)}>
+              {verOcultos ? "Ocultar atendidos" : `Ver atendidos (${numOcultos})`}
+            </button>
+          )}
           <button className="btn-ghost-light" onClick={exportarAExcel}>Exportar Excel</button>
           <button className="btn-ghost-light" onClick={exportarAPDF}>Exportar PDF</button>
           <Link href="/gestion-masiva" className="btn-ghost-light" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}>Gestión masiva (circular)</Link>
@@ -307,9 +340,17 @@ export default function PlanDiario() {
               </thead>
               <tbody>
                 {mostradas.map((f, i) => (
-                  <tr key={f.nit}>
+                  <tr key={f.nit} style={f.motivoOculto ? { opacity: 0.6, background: "#f7faf7" } : undefined}>
                     <td>{i + 1}</td>
-                    <td><b>{f.nombre || f.nit}</b><br /><span className="muted">{f.nit} · {f.ciudad || "—"}</span></td>
+                    <td>
+                      <b>{f.nombre || f.nit}</b>
+                      {f.motivoOculto && (
+                        <span className="pill" style={{ marginLeft: 8, background: "var(--verde)22", color: "var(--verde)", fontSize: 11 }}>
+                          ✓ {f.motivoOculto}
+                        </span>
+                      )}
+                      <br /><span className="muted">{f.nit} · {f.ciudad || "—"}</span>
+                    </td>
                     <td>
                       <span className="pill" style={{ background: f.etapa.bg, color: f.etapa.color }}>
                         {f.etapa.label}
