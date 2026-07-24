@@ -186,7 +186,7 @@ export default function GestionMasiva() {
             <textarea rows={3} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ej: Se envió circular de cobro N° 045 del 15/07/2026 informando sobre saldos pendientes." />
             <small className="muted">{obs.trim().length}/20</small>
           </label>
-          <label className="field" style={{ marginTop: 10 }}>
+          <div className="field" style={{ marginTop: 10 }}>
             <span>Adjuntar circular (opcional) — PDF o imagen</span>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input
@@ -205,7 +205,7 @@ export default function GestionMasiva() {
                 </span>
               )}
             </div>
-          </label>
+          </div>
         </div>
 
         {/* Selección de clientes */}
