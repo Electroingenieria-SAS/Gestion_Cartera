@@ -477,7 +477,7 @@ export default function FichaCliente() {
         )}
 
         {/* Upload de PDF (opcional, disponible en cualquier gestión) */}
-        <label className="field" style={{ marginTop: 10 }}>
+        <div className="field" style={{ marginTop: 10 }}>
           <span>Adjuntar archivo (opcional) — PDF o imagen</span>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <input
@@ -496,7 +496,7 @@ export default function FichaCliente() {
               </span>
             )}
           </div>
-        </label>
+        </div>
 
         {aviso && <div className={`upload-msg ${aviso.tipo === "ok" ? "listo" : "error"}`}>{aviso.txt}</div>}
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={guardarGestion} disabled={guardando}>
