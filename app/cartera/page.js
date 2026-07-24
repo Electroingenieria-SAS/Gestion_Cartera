@@ -2,11 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AppShell from "../components/AppShell";
 import { getCargaActual } from "../../lib/cartera";
 import { pesos, num } from "../../lib/format";
 import { exportarExcel, exportarPDF, hoyISO } from "../../lib/exportar";
 import { supabase } from "../../lib/supabase";
+import { parseFechaSiesa } from "../../lib/pronostico";
+
+function fmtFechaSiesa(v) {
+  const f = parseFechaSiesa(v);
+  return f ? f.toLocaleDateString("es-CO") : "—";
+}
 
 const COL_CAT = {
   "Vigente": "#15a36b", "Vencido 1 a 30": "#ddbc00",
@@ -50,6 +57,8 @@ export default function Cartera() {
       setEnviando(false);
     }
   }
+
+  const router = useRouter();
 
   const vendedores = useMemo(() => [...new Set(docs.map((d) => d.vendedor).filter(Boolean))].sort(), [docs]);
   const ciudades = useMemo(() => [...new Set(docs.map((d) => d.ciudad).filter(Boolean))].sort(), [docs]);
@@ -166,13 +175,19 @@ export default function Cartera() {
               </thead>
               <tbody>
                 {filtrados.slice(0, MAX_FILAS).map((d) => (
-                  <tr key={d.id}>
+                  <tr
+                    key={d.id}
+                    onClick={() => router.push(`/cliente/${encodeURIComponent(d.nit)}`)}
+                    style={{ cursor: "pointer" }}
+                    title="Ver ficha del cliente"
+                    className="fila-click"
+                  >
                     <td>{d.nit}</td>
-                    <td><b>{d.nombre_cliente || "—"}</b></td>
+                    <td><b style={{ color: "var(--azul)" }}>{d.nombre_cliente || "—"}</b></td>
                     <td>{d.ciudad || "—"}</td>
                     <td>{d.vendedor || "—"}</td>
                     <td>{d.numero_docto || "—"}</td>
-                    <td>{d.fecha_vencimiento || "—"}</td>
+                    <td>{fmtFechaSiesa(d.fecha_vencimiento)}</td>
                     <td style={{ textAlign: "right" }}>{d.dias_vencidos}</td>
                     <td>
                       <span className="pill" style={{ background: (COL_CAT[d.categoria] || "#888") + "22", color: COL_CAT[d.categoria] || "#555" }}>
