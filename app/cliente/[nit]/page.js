@@ -34,7 +34,6 @@ export default function FichaCliente() {
   const nit = decodeURIComponent(useParams().nit || "");
   const [estado, setEstado] = useState("cargando");
   const [resumen, setResumen] = useState(null);
-  const [contacto, setContacto] = useState({ telefono: "", correo: "" });
   const [historial, setHistorial] = useState([]);
   const [pred, setPred] = useState(null);
   const [enSeguro, setEnSeguro] = useState(false);
@@ -66,11 +65,10 @@ export default function FichaCliente() {
 
     const { data: cli } = await supabase
       .from("clientes")
-      .select("telefono, correo, en_seguro")
+      .select("en_seguro")
       .eq("nit", nit)
       .single();
     if (cli) {
-      setContacto({ telefono: cli.telefono || "", correo: cli.correo || "" });
       setEnSeguro(cli.en_seguro || false);
     }
 
@@ -105,12 +103,6 @@ export default function FichaCliente() {
       await cargarTodo();
     })();
   }, [nit]);
-
-  async function guardarContacto() {
-    if (soloLectura) return;
-    await supabase.from("clientes").update({ telefono: contacto.telefono, correo: contacto.correo }).eq("nit", nit);
-    setAviso({ tipo: "ok", txt: "Contacto guardado." });
-  }
 
   async function guardarGestion() {
     if (soloLectura) return;
@@ -292,27 +284,10 @@ export default function FichaCliente() {
           <div className="dato"><span>Cliente</span><b>{resumen?.nombre || "—"}</b></div>
           <div className="dato"><span>Ciudad</span><b>{resumen?.ciudad || "—"}</b></div>
           <div className="dato"><span>Vendedor</span><b>{resumen?.vendedor || "—"}</b></div>
+          <div className="dato"><span>Condición de pago</span><b>{resumen?.condicion_pago || "—"}</b></div>
           {enSeguro && (
             <div className="dato"><span>Estado de cobro</span><b style={{ color: "#3b42a0" }}>En manos del seguro</b></div>
           )}
-          <div className="contacto-edit">
-            {soloLectura ? (
-              <>
-                <div className="dato"><span>Teléfono</span><b>{contacto.telefono || "—"}</b></div>
-                <div className="dato"><span>Correo</span><b>{contacto.correo || "—"}</b></div>
-              </>
-            ) : (
-              <>
-                <label className="field"><span>Teléfono</span>
-                  <input value={contacto.telefono} onChange={(e) => setContacto({ ...contacto, telefono: e.target.value })} placeholder="Agregar teléfono" />
-                </label>
-                <label className="field"><span>Correo</span>
-                  <input value={contacto.correo} onChange={(e) => setContacto({ ...contacto, correo: e.target.value })} placeholder="Agregar correo" />
-                </label>
-                <button className="btn-ghost-light" onClick={guardarContacto}>Guardar contacto</button>
-              </>
-            )}
-          </div>
         </div>
 
         <div className="panel">
