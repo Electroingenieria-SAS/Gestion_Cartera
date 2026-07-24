@@ -10,12 +10,35 @@ import { pesos, num } from "../../lib/format";
 import { exportarExcelEstilizado, exportarPDF, hoyISO } from "../../lib/exportar";
 import { etapaCobranza, ETAPAS_ORDEN } from "../../lib/etapas";
 
+// Encabezado de columna ordenable: clic ordena, otro clic invierte.
+function Th({ col, orden, setOrden, align = "left", children }) {
+  const activo = orden.col === col;
+  const flecha = !activo ? "↕" : orden.dir === "asc" ? "↑" : "↓";
+  return (
+    <th
+      onClick={() =>
+        setOrden((o) =>
+          o.col === col ? { col, dir: o.dir === "asc" ? "desc" : "asc" } : { col, dir: "desc" }
+        )
+      }
+      style={{ textAlign: align, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+      title="Clic para ordenar"
+    >
+      {children}{" "}
+      <span style={{ color: activo ? "var(--azul)" : "#b9c2d4", fontSize: 11 }}>{flecha}</span>
+    </th>
+  );
+}
+
 export default function PlanDiario() {
   const [estado, setEstado] = useState("cargando");
   const [lista, setLista] = useState([]);
   const [verTodos, setVerTodos] = useState(false);
   const [etapaSel, setEtapaSel] = useState(null);
   const [busqueda, setBusqueda] = useState("");
+  const [verScore, setVerScore] = useState(false);
+  const [filtroValor, setFiltroValor] = useState("");
+  const [orden, setOrden] = useState({ col: "score", dir: "desc" });
 
   useEffect(() => {
     (async () => {
@@ -73,6 +96,37 @@ export default function PlanDiario() {
     const b = busqueda.trim().toLowerCase();
     mostradas = mostradas.filter((f) => `${f.nombre || ""} ${f.nit || ""}`.toLowerCase().includes(b));
   }
+
+  // Filtro APROXIMADO por valor vencido: banda de +-15% alrededor de la cifra.
+  // Si escribe 120.000.000 -> trae de ~102M a ~138M. Nunca clientes lejanos.
+  const BANDA = 0.15;
+  const valorObjetivo = Number(String(filtroValor).replace(/\D/g, "")) || 0;
+  if (valorObjetivo > 0) {
+    const min = valorObjetivo * (1 - BANDA);
+    const max = valorObjetivo * (1 + BANDA);
+    mostradas = mostradas.filter((f) => f.vencido >= min && f.vencido <= max);
+  }
+
+  // Ordenamiento por columna (clic en el encabezado).
+  const getCampo = (f, col) => {
+    switch (col) {
+      case "cliente": return (f.nombre || f.nit || "").toLowerCase();
+      case "etapa":   return f.etapa?.orden ?? 0;
+      case "vencido": return f.vencido || 0;
+      case "dias":    return f.dias || 0;
+      case "ultima":  return f.ultima ? new Date(f.ultima).getTime() : 0;
+      case "score":   return f.score || 0;
+      case "prio":    return f.score || 0;
+      default:        return 0;
+    }
+  };
+  mostradas = [...mostradas].sort((a, b) => {
+    const va = getCampo(a, orden.col), vb = getCampo(b, orden.col);
+    let cmp = 0;
+    if (typeof va === "string") cmp = va.localeCompare(vb);
+    else cmp = va - vb;
+    return orden.dir === "asc" ? cmp : -cmp;
+  });
 
   async function exportarAExcel() {
     const fechaHoy = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -172,11 +226,24 @@ export default function PlanDiario() {
           })}
         </div>
 
-        <div className="pred-explica" style={{ marginTop: 14 }}>
-          <b>¿Cómo se calcula el Score?</b> Combina 4 factores, cada uno llevado a una escala de 0 a 100 y luego
-          ponderado: <b>40%</b> días de mora · <b>30%</b> valor adeudado · <b>20%</b> días sin gestión ·
-          <b> 10%</b> promesas incumplidas. Prioridad: Crítica ≥66 · Alta 40–65 · Media 20–39 · Baja &lt;20.
-          Los pesos son configurables en <code>business_rules/priority_rules.json</code>.
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={() => setVerScore((v) => !v)}
+            style={{
+              background: "transparent", border: "none", cursor: "pointer",
+              color: "var(--azul)", fontSize: 13, fontWeight: 600, padding: "4px 0",
+            }}
+          >
+            {verScore ? "▲ Ocultar cómo se calcula el Score" : "▼ ¿Cómo se calcula el Score?"}
+          </button>
+          {verScore && (
+            <div className="pred-explica" style={{ marginTop: 8 }}>
+              Combina 4 factores, cada uno llevado a una escala de 0 a 100 y luego
+              ponderado: <b>40%</b> días de mora · <b>30%</b> valor adeudado · <b>20%</b> días sin gestión ·
+              <b> 10%</b> promesas incumplidas. Prioridad: Crítica ≥66 · Alta 40–65 · Media 20–39 · Baja &lt;20.
+              Los pesos son configurables en <code>business_rules/priority_rules.json</code>.
+            </div>
+          )}
         </div>
 
         <div className="filtros" style={{ marginTop: 14 }}>
@@ -185,6 +252,17 @@ export default function PlanDiario() {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
+          <input
+            placeholder="Valor vencido ≈ (±15%)"
+            value={filtroValor ? Number(String(filtroValor).replace(/\D/g, "")).toLocaleString("es-CO") : ""}
+            onChange={(e) => setFiltroValor(e.target.value.replace(/\D/g, ""))}
+            style={{ maxWidth: 190 }}
+          />
+          {valorObjetivo > 0 && (
+            <button className="btn-ghost-light" onClick={() => setFiltroValor("")}>
+              Limpiar valor
+            </button>
+          )}
           <button className="btn-ghost-light" onClick={() => setVerTodos(!verTodos)}>
             {verTodos ? "Ver solo prioritarios" : `Ver todos (${lista.length})`}
           </button>
@@ -216,13 +294,15 @@ export default function PlanDiario() {
               </colgroup>
               <thead>
                 <tr>
-                  <th>#</th><th>Cliente</th>
-                  <th>Etapa</th>
-                  <th style={{ textAlign: "right" }}>Valor vencido</th>
-                  <th style={{ textAlign: "right" }}>Días mora</th>
-                  <th>Última gestión</th>
-                  <th style={{ textAlign: "right" }}>Score</th>
-                  <th>Prioridad</th><th></th>
+                  <th>#</th>
+                  <Th col="cliente" orden={orden} setOrden={setOrden}>Cliente</Th>
+                  <Th col="etapa" orden={orden} setOrden={setOrden}>Etapa</Th>
+                  <Th col="vencido" orden={orden} setOrden={setOrden} align="right">Valor vencido</Th>
+                  <Th col="dias" orden={orden} setOrden={setOrden} align="right">Días mora</Th>
+                  <Th col="ultima" orden={orden} setOrden={setOrden}>Última gestión</Th>
+                  <Th col="score" orden={orden} setOrden={setOrden} align="right">Score</Th>
+                  <Th col="prio" orden={orden} setOrden={setOrden}>Prioridad</Th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
