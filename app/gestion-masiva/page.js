@@ -120,6 +120,7 @@ export default function GestionMasiva() {
           usuario_id: usuario.id,
           usuario_nombre: usuario.nombre,
           archivo_url: archivoUrl,
+          es_masiva: true,
         }));
 
         const { error } = await supabase.from("gestiones").insert(lote);
