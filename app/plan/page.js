@@ -10,6 +10,7 @@ import { pesos, num } from "../../lib/format";
 import { exportarExcelEstilizado, exportarPDF, hoyISO } from "../../lib/exportar";
 import { etapaCobranza, ETAPAS_ORDEN } from "../../lib/etapas";
 import { getNitsGestionadosHoy, getNitsConCompromisoVigente } from "../../lib/alertas";
+import { getNitsEnJuridico } from "../../lib/juridico";
 
 // Encabezado de columna ordenable: clic ordena, otro clic invierte.
 function Th({ col, orden, setOrden, align = "left", children }) {
@@ -70,16 +71,20 @@ export default function PlanDiario() {
       for (const a of inc || []) promInc[a.cliente_nit] = (promInc[a.cliente_nit] || 0) + 1;
 
       // Clientes a ocultar del plan de hoy: ya gestionados hoy, o con compromiso a futuro.
-      const [gestHoy, compVigente] = await Promise.all([
+      // Los que están en cobro jurídico se EXCLUYEN por completo (los maneja jurídico).
+      const [gestHoy, compVigente, enJuridico] = await Promise.all([
         getNitsGestionadosHoy(),
         getNitsConCompromisoVigente(),
+        getNitsEnJuridico(),
       ]);
       const ocultar = new Set();
       for (const nit of gestHoy) ocultar.add(String(nit));
       for (const nit of compVigente) ocultar.add(String(nit));
       setOcultosSet(ocultar);
 
-      const filas = Object.values(cli).map((c) => {
+      const filas = Object.values(cli)
+        .filter((c) => !enJuridico.has(String(c.nit)))
+        .map((c) => {
         const diasSinGestion = ultima[c.nit] ? Math.floor((Date.now() - new Date(ultima[c.nit])) / 86400000) : 9999;
         const score = calcularScore({ diasMora: c.dias, valorVencido: c.vencido, diasSinGestion, promesasIncumplidas: promInc[c.nit] || 0 });
         const etapa = etapaCobranza(c.dias);
