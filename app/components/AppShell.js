@@ -18,6 +18,7 @@ import {
   Bell,
   ShieldCheck,
   History,
+  Gavel,
   LogOut,
 } from "lucide-react";
 
@@ -25,20 +26,26 @@ const ROLES = {
   auxiliar: "Auxiliar de cartera",
   supervisor: "Supervisor",
   consulta: "Consulta",
+  juridico: "Cobranza jurídica",
 };
 
-// Menú principal horizontal. "soloSupervisor" se muestra únicamente a supervisores.
+// Roles "de cartera" (todo el que NO es jurídico ve el menú normal).
+const CARTERA = ["auxiliar", "supervisor", "consulta"];
+
+// Menú principal horizontal. Cada ítem define qué roles lo ven.
+// El rol 'juridico' SOLO ve su bandeja de cobro jurídico.
 const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { id: "cargar", label: "Cargar", icon: Upload, href: "/cargar" },
-  { id: "plan", label: "Plan diario", icon: ClipboardList, href: "/plan" },
-  { id: "prediccion", label: "Predicción", icon: TrendingUp, href: "/prediccion" },
-  { id: "pronostico", label: "Pronóstico", icon: Target, href: "/pronostico" },
-  { id: "cartera", label: "Cartera", icon: Wallet, href: "/cartera" },
-  { id: "clientes", label: "Clientes", icon: Users, href: "/clientes" },
-  { id: "acuerdos", label: "Acuerdos", icon: Handshake, href: "/acuerdos" },
-  { id: "alertas", label: "Alertas", icon: Bell, href: "/alertas" },
-  { id: "auditoria", label: "Trazabilidad", icon: History, href: "/auditoria" },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", roles: CARTERA },
+  { id: "cargar", label: "Cargar", icon: Upload, href: "/cargar", roles: CARTERA },
+  { id: "plan", label: "Plan diario", icon: ClipboardList, href: "/plan", roles: CARTERA },
+  { id: "prediccion", label: "Predicción", icon: TrendingUp, href: "/prediccion", roles: CARTERA },
+  { id: "pronostico", label: "Pronóstico", icon: Target, href: "/pronostico", roles: CARTERA },
+  { id: "cartera", label: "Cartera", icon: Wallet, href: "/cartera", roles: CARTERA },
+  { id: "clientes", label: "Clientes", icon: Users, href: "/clientes", roles: CARTERA },
+  { id: "acuerdos", label: "Acuerdos", icon: Handshake, href: "/acuerdos", roles: CARTERA },
+  { id: "juridico", label: "Cobro jurídico", icon: Gavel, href: "/juridico", roles: ["supervisor", "juridico"] },
+  { id: "alertas", label: "Alertas", icon: Bell, href: "/alertas", roles: CARTERA },
+  { id: "auditoria", label: "Trazabilidad", icon: History, href: "/auditoria", roles: CARTERA },
 ];
 
 // Estructura común (topbar horizontal + título de página) para todas las páginas internas.
@@ -90,7 +97,8 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
   const iniciales = (perfil.nombre || "U")
     .split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
-  const navVisible = NAV.filter((item) => !item.soloSupervisor || perfil.rol === "supervisor");
+  const navVisible = NAV.filter((item) => !item.roles || item.roles.includes(perfil.rol));
+  const esJuridico = perfil.rol === "juridico";
 
   return (
     <div className="app-shell">
@@ -118,10 +126,12 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
         </nav>
 
         <div className="topbar-right">
-          <Link href="/alertas" className="bell" aria-label="Alertas">
-            <Bell size={22} strokeWidth={2} />
-            {alertas > 0 && <span className="bell-count">{alertas > 99 ? "99+" : alertas}</span>}
-          </Link>
+          {!esJuridico && (
+            <Link href="/alertas" className="bell" aria-label="Alertas">
+              <Bell size={22} strokeWidth={2} />
+              {alertas > 0 && <span className="bell-count">{alertas > 99 ? "99+" : alertas}</span>}
+            </Link>
+          )}
           <div className="user-chip">
             <div className="avatar">{iniciales}</div>
             <div className="user-meta">
