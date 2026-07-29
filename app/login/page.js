@@ -69,13 +69,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
+      setLoading(false);
       setError("Correo o contraseña incorrectos. Intenta de nuevo.");
       return;
     }
-    router.push("/dashboard");
+    // El rol jurídico entra directo a su bandeja; el resto al dashboard.
+    let destino = "/dashboard";
+    if (data?.user?.id) {
+      const { data: p } = await supabase.from("profiles").select("rol").eq("id", data.user.id).single();
+      if (p?.rol === "juridico") destino = "/juridico";
+    }
+    setLoading(false);
+    router.push(destino);
   }
 
   return (
