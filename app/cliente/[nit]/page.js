@@ -10,6 +10,7 @@ import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos, formatearMiles, soloNumero } from "../../../lib/format";
 import { numeroALetras } from "../../../lib/numeroALetras";
 import { parseFechaSiesa } from "../../../lib/pronostico";
+import { getEstadoJuridico, getHistorialJuridico, enviarAJuridico, devolverDeJuridico } from "../../../lib/juridico";
 
 // Convierte la fecha cruda de Siesa (20260703) a formato legible (03/07/2026).
 function fmtFechaSiesa(v) {
@@ -41,6 +42,15 @@ export default function FichaCliente() {
   const [usuario, setUsuario] = useState({ id: null, nombre: "", rol: "consulta" });
   const soloLectura = usuario.rol === "consulta";
 
+  // Cobro jurídico
+  const [cobroJuridico, setCobroJuridico] = useState(false);
+  const [histJuridico, setHistJuridico] = useState([]);
+  const [modalJur, setModalJur] = useState(null);   // 'enviar' | 'devolver' | null
+  const [motivoJur, setMotivoJur] = useState("");
+  const [guardandoJur, setGuardandoJur] = useState(false);
+  const puedeEnviarJuridico = usuario.rol === "auxiliar" || usuario.rol === "supervisor";
+  const puedeDevolverJuridico = usuario.rol === "supervisor" || usuario.rol === "juridico";
+
   const [tipo, setTipo] = useState("Llamada");
   const [resultado, setResultado] = useState("Contactado");
   const [obs, setObs] = useState("");
@@ -71,6 +81,10 @@ export default function FichaCliente() {
     if (cli) {
       setEnSeguro(cli.en_seguro || false);
     }
+
+    // Estado e historial de cobro jurídico
+    setCobroJuridico(await getEstadoJuridico(nit));
+    setHistJuridico(await getHistorialJuridico(nit));
 
     const { data: hist } = await supabase
       .from("gestiones")
@@ -255,9 +269,33 @@ export default function FichaCliente() {
     }
   }
 
+  // Confirmar envío o devolución de cobro jurídico
+  async function confirmarJuridico() {
+    setGuardandoJur(true);
+    setAviso(null);
+    try {
+      if (modalJur === "enviar") {
+        await enviarAJuridico({ nit, motivo: motivoJur, usuario });
+        setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico. Sale del plan diario de cartera y pasa a la bandeja de jurídico." });
+      } else {
+        await devolverDeJuridico({ nit, motivo: motivoJur, usuario });
+        setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
+      }
+      setModalJur(null);
+      setMotivoJur("");
+      await cargarTodo();
+    } catch (err) {
+      setAviso({ tipo: "error", txt: "Error: " + (err?.message || "desconocido") });
+    } finally {
+      setGuardandoJur(false);
+    }
+  }
+
   if (estado === "cargando") {
     return <AppShell active="plan" titulo="Cliente" subtitulo=""><p className="muted">Cargando ficha…</p></AppShell>;
   }
+
+  const ultimoMovJur = histJuridico[0] || null;
 
   const sinDatos = !resumen || resumen.documentos === 0;
 
@@ -274,6 +312,99 @@ export default function FichaCliente() {
         }}>
           <span style={{ fontSize: 20 }}>🛡️</span>
           Este cliente está marcado como <b>«En manos del seguro»</b>. El cobro lo gestiona la aseguradora.
+        </div>
+      )}
+
+      {/* === COBRO JURÍDICO === */}
+      {cobroJuridico ? (
+        <div style={{
+          background: "#fdeaea", border: "1px solid #f2c2c2", color: "#8a1f1f",
+          borderRadius: "var(--radio)", padding: "14px 18px", marginBottom: 18, fontSize: 14,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 600 }}>
+            <span style={{ fontSize: 20 }}>⚖️</span>
+            <span>Este cliente está en <b>cobro jurídico</b>. Lo gestiona el área jurídica; salió del plan diario de cartera.</span>
+          </div>
+          {ultimoMovJur && (
+            <div className="muted" style={{ marginTop: 8, fontSize: 12.5 }}>
+              {ultimoMovJur.accion === "Enviado" ? "Enviado a jurídico" : "Último movimiento"} el{" "}
+              {new Date(ultimoMovJur.creado_en).toLocaleDateString("es-CO")} por {ultimoMovJur.usuario_nombre || "—"}
+              {ultimoMovJur.motivo ? ` · ${ultimoMovJur.motivo}` : ""}
+            </div>
+          )}
+          {puedeDevolverJuridico && modalJur !== "devolver" && (
+            <button
+              onClick={() => { setModalJur("devolver"); setMotivoJur(""); }}
+              style={{
+                marginTop: 12, background: "transparent", border: "1px solid #c98a8a",
+                color: "#8a1f1f", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              ↩ Devolver a gestión normal
+            </button>
+          )}
+        </div>
+      ) : (
+        puedeEnviarJuridico && !enSeguro && !sinDatos && resumen.vencida > 0 && modalJur !== "enviar" && (
+          <div style={{ marginBottom: 18 }}>
+            <button
+              onClick={() => { setModalJur("enviar"); setMotivoJur(""); }}
+              style={{
+                background: "#fdeaea", border: "1px solid #f2c2c2", color: "#8a1f1f",
+                borderRadius: 10, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 8,
+              }}
+            >
+              ⚖️ Enviar a cobro jurídico
+            </button>
+          </div>
+        )
+      )}
+
+      {/* Modal en línea: motivo del movimiento jurídico */}
+      {modalJur && (
+        <div style={{
+          background: "#fff8f8", border: "1px solid #f2c2c2", borderRadius: "var(--radio)",
+          padding: 18, marginBottom: 18,
+        }}>
+          <h3 style={{ marginTop: 0, marginBottom: 4, color: "#8a1f1f" }}>
+            {modalJur === "enviar" ? "Enviar a cobro jurídico" : "Devolver a gestión normal"}
+          </h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {modalJur === "enviar"
+              ? "El cliente saldrá del plan diario de cartera y pasará a la bandeja del área jurídica. Queda registrado."
+              : "El cliente volverá al plan diario de cartera. Queda registrado."}
+          </p>
+          <label className="field">
+            <span>Motivo (opcional)</span>
+            <textarea
+              rows={2}
+              value={motivoJur}
+              onChange={(e) => setMotivoJur(e.target.value)}
+              placeholder={modalJur === "enviar" ? "Ej: 95 días de mora, incumplió dos acuerdos, no responde." : "Ej: El cliente pagó / se llegó a un acuerdo."}
+            />
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button
+              onClick={confirmarJuridico}
+              disabled={guardandoJur}
+              style={{
+                background: "#d23b3b", color: "#fff", border: "none", borderRadius: 8,
+                padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              {guardandoJur ? "Guardando…" : modalJur === "enviar" ? "Confirmar envío a jurídico" : "Confirmar devolución"}
+            </button>
+            <button
+              onClick={() => { setModalJur(null); setMotivoJur(""); }}
+              style={{
+                background: "var(--gris-cl)", color: "var(--texto)", border: "1px solid var(--borde)",
+                borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
 
