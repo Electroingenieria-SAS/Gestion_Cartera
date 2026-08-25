@@ -22,7 +22,11 @@ const COL_CAT = {
   "Vencido 91 >": "#d23b3b",
 };
 
-export async function GET() {
+export async function GET(request) {
+  const authHeader = request.headers.get("authorization");
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response("Unauthorized", { status: 401 });
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const smtpUser = process.env.SMTP_USER;
