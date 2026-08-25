@@ -9,7 +9,7 @@ create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   nombre      text not null,
   rol         text not null default 'consulta'
-              check (rol in ('auxiliar', 'supervisor', 'consulta')),
+              check (rol in ('auxiliar', 'supervisor', 'consulta', 'juridico')),
   creado_en   timestamptz not null default now()
 );
 
