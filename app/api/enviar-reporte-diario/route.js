@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { verificarAuth } from "../../../lib/apiAuth";
 
 // =========================================================
 //  /api/enviar-reporte-diario
@@ -30,10 +31,9 @@ const COL_CAT = {
 };
 
 export async function GET(request) {
-  const authHeader = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const auth = await verificarAuth(request);
+  if (auth.error) return auth.error;
+  
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const smtpUser = process.env.SMTP_USER;
