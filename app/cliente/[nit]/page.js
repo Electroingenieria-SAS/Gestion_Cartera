@@ -217,6 +217,13 @@ export default function FichaCliente() {
     else setAviso({ tipo: "error", txt: "No se pudo obtener el archivo. Verifica que existe en Storage." });
   }
 
+  // Abrir un soporte del expediente jurídico (enlace firmado, bucket privado)
+  async function abrirSoporte(ruta) {
+    const url = await urlFirmadaSoporte(ruta);
+    if (url) window.open(url, "_blank");
+    else setAviso({ tipo: "error", txt: "No se pudo abrir el soporte." });
+  }
+
   // Iniciar edición de una gestión (solo supervisor)
   function iniciarEdicion(h) {
     setEditId(h.id);
@@ -282,17 +289,25 @@ export default function FichaCliente() {
     setAviso(null);
     try {
       if (modalJur === "enviar") {
-      const val = validarSoportesJuridicos(archivosJur);
-      if (!val.ok) { setAviso({ tipo: "error", txt: val.error }); setGuardandoJur(false); return; }
-      await enviarAJuridico({ nit, motivo: motivoJur, archivos: archivosJur });
-      setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico con sus soportes. Sale del plan diario y pasa a la bandeja de jurídico." });
-    } else {
-      await devolverDeJuridico({ nit, motivo: motivoJur });
-      setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
-    }
+        const val = validarSoportesJuridicos(archivosJur);
+        if (!val.ok) {
+          setAviso({ tipo: "error", txt: val.error });
+          return;
+        }
+        await enviarAJuridico({ nit, motivo: motivoJur, archivos: archivosJur });
+        setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico con sus soportes. Sale del plan diario y pasa a la bandeja de jurídico." });
+      } else {
+        await devolverDeJuridico({ nit, motivo: motivoJur });
+        setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
+      }
       setModalJur(null);
-      setMotivoJur(""); setArchivosJur([]);
+      setMotivoJur("");
+      setArchivosJur([]);
       await cargarTodo();
+    } catch (err) {
+      setAviso({ tipo: "error", txt: "Error: " + (err?.message || "desconocido") });
+    } finally {
+      setGuardandoJur(false);
     }
   }
 
@@ -337,6 +352,30 @@ export default function FichaCliente() {
               {ultimoMovJur.motivo ? ` · ${ultimoMovJur.motivo}` : ""}
             </div>
           )}
+
+          {/* Soportes del traslado (expediente): visibles para jurídico/supervisor/auxiliar */}
+          {ultimoMovJur && adjuntosJur[ultimoMovJur.id]?.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
+                Soportes del traslado ({adjuntosJur[ultimoMovJur.id].length}):
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {adjuntosJur[ultimoMovJur.id].map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => abrirSoporte(a.ruta)}
+                    style={{
+                      background: "#fff", border: "1px solid #f2c2c2", color: "#8a1f1f",
+                      borderRadius: 8, padding: "6px 10px", fontSize: 12.5, cursor: "pointer",
+                    }}
+                  >
+                    📎 {a.nombre_archivo}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {puedeDevolverJuridico && modalJur !== "devolver" && (
             <button
               onClick={() => { setModalJur("devolver"); setMotivoJur(""); }}
@@ -389,7 +428,8 @@ export default function FichaCliente() {
               placeholder={modalJur === "enviar" ? "Ej: 95 días de mora, incumplió dos acuerdos, no responde." : "Ej: El cliente pagó / se llegó a un acuerdo."}
             />
           </label>
-                    {modalJur === "enviar" && (
+
+          {modalJur === "enviar" && (
             <label className="field" style={{ marginTop: 10 }}>
               <span>Soportes del cobro (obligatorio · máx. {JURIDICO_MAX_ARCHIVOS} · {JURIDICO_MAX_MB} MB c/u)</span>
               <input
@@ -410,7 +450,7 @@ export default function FichaCliente() {
               )}
             </label>
           )}
-            
+
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={confirmarJuridico}
