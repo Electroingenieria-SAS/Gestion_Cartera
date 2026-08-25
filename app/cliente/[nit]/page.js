@@ -10,7 +10,11 @@ import { calcularProbabilidad } from "../../../lib/prediccion";
 import { pesos, formatearMiles, soloNumero } from "../../../lib/format";
 import { numeroALetras } from "../../../lib/numeroALetras";
 import { parseFechaSiesa } from "../../../lib/pronostico";
-import { getEstadoJuridico, getHistorialJuridico, enviarAJuridico, devolverDeJuridico } from "../../../lib/juridico";
+import {
+  getEstadoJuridico, getHistorialJuridico, getAdjuntosJuridico,
+  enviarAJuridico, devolverDeJuridico, urlFirmadaSoporte,
+  validarSoportesJuridicos, JURIDICO_MAX_ARCHIVOS, JURIDICO_MAX_MB,
+} from "../../../lib/juridico";
 
 // Convierte la fecha cruda de Siesa (20260703) a formato legible (03/07/2026).
 function fmtFechaSiesa(v) {
@@ -47,6 +51,8 @@ export default function FichaCliente() {
   const [histJuridico, setHistJuridico] = useState([]);
   const [modalJur, setModalJur] = useState(null);   // 'enviar' | 'devolver' | null
   const [motivoJur, setMotivoJur] = useState("");
+  const [archivosJur, setArchivosJur] = useState([]);
+  const [adjuntosJur, setAdjuntosJur] = useState({});
   const [guardandoJur, setGuardandoJur] = useState(false);
   const puedeEnviarJuridico = usuario.rol === "auxiliar" || usuario.rol === "supervisor";
   const puedeDevolverJuridico = usuario.rol === "supervisor" || usuario.rol === "juridico";
@@ -85,6 +91,7 @@ export default function FichaCliente() {
     // Estado e historial de cobro jurídico
     setCobroJuridico(await getEstadoJuridico(nit));
     setHistJuridico(await getHistorialJuridico(nit));
+    setAdjuntosJur(await getAdjuntosJuridico(nit));
 
     const { data: hist } = await supabase
       .from("gestiones")
@@ -275,19 +282,17 @@ export default function FichaCliente() {
     setAviso(null);
     try {
       if (modalJur === "enviar") {
-        await enviarAJuridico({ nit, motivo: motivoJur, usuario });
-        setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico. Sale del plan diario de cartera y pasa a la bandeja de jurídico." });
-      } else {
-        await devolverDeJuridico({ nit, motivo: motivoJur, usuario });
-        setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
-      }
+      const val = validarSoportesJuridicos(archivosJur);
+      if (!val.ok) { setAviso({ tipo: "error", txt: val.error }); setGuardandoJur(false); return; }
+      await enviarAJuridico({ nit, motivo: motivoJur, archivos: archivosJur });
+      setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico con sus soportes. Sale del plan diario y pasa a la bandeja de jurídico." });
+    } else {
+      await devolverDeJuridico({ nit, motivo: motivoJur });
+      setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
+    }
       setModalJur(null);
-      setMotivoJur("");
+      setMotivoJur(""); setArchivosJur([]);
       await cargarTodo();
-    } catch (err) {
-      setAviso({ tipo: "error", txt: "Error: " + (err?.message || "desconocido") });
-    } finally {
-      setGuardandoJur(false);
     }
   }
 
@@ -384,10 +389,32 @@ export default function FichaCliente() {
               placeholder={modalJur === "enviar" ? "Ej: 95 días de mora, incumplió dos acuerdos, no responde." : "Ej: El cliente pagó / se llegó a un acuerdo."}
             />
           </label>
+                    {modalJur === "enviar" && (
+            <label className="field" style={{ marginTop: 10 }}>
+              <span>Soportes del cobro (obligatorio · máx. {JURIDICO_MAX_ARCHIVOS} · {JURIDICO_MAX_MB} MB c/u)</span>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  const val = validarSoportesJuridicos(files);
+                  if (!val.ok) { setAviso({ tipo: "error", txt: val.error }); e.target.value = ""; setArchivosJur([]); return; }
+                  setAviso(null); setArchivosJur(files);
+                }}
+              />
+              {archivosJur.length > 0 && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {archivosJur.length} archivo{archivosJur.length > 1 ? "s" : ""} seleccionado{archivosJur.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </label>
+          )}
+            
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={confirmarJuridico}
-              disabled={guardandoJur}
+              disabled={guardandoJur || (modalJur === "enviar" && archivosJur.length < 1)}
               style={{
                 background: "#d23b3b", color: "#fff", border: "none", borderRadius: 8,
                 padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -396,7 +423,7 @@ export default function FichaCliente() {
               {guardandoJur ? "Guardando…" : modalJur === "enviar" ? "Confirmar envío a jurídico" : "Confirmar devolución"}
             </button>
             <button
-              onClick={() => { setModalJur(null); setMotivoJur(""); }}
+              onClick={() => { setModalJur(null); setMotivoJur(""); setArchivosJur([]); }}
               style={{
                 background: "var(--gris-cl)", color: "var(--texto)", border: "1px solid var(--borde)",
                 borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
