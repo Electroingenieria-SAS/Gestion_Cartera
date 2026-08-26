@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabase";
 import { calcularProbabilidad } from "../../lib/prediccion";
 import { pesos, num } from "../../lib/format";
 import { etapaCobranza, ETAPAS_ORDEN } from "../../lib/etapas";
+import { Target } from "lucide-react";
 
 export default function Prediccion() {
   const [estado, setEstado] = useState("cargando");
@@ -100,7 +101,7 @@ export default function Prediccion() {
   } else if (estado === "vacio") {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">✦</div>
+        <div className="empty-ico"><Target size={30} strokeWidth={2} /></div>
         <h2>Aún no hay cartera cargada</h2>
         <p>Sube tu archivo de Siesa para generar las predicciones.</p>
         <Link href="/cargar" className="btn btn-primary">Subir archivo de Siesa</Link>
