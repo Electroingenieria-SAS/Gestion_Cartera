@@ -5,30 +5,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "../../lib/supabase";
 
-// Fondo animado: orbes suaves, anillos, cuadrados girando, triángulo y puntos.
-const ORBES = [
-  { s: 360, t: "-8%", l: "-6%", c: "rgba(255,255,255,.08)", a: "lgFloat", d: 22, dl: 0 },
-  { s: 300, t: "55%", l: "80%", c: "rgba(221,188,0,.12)", a: "lgFloat2", d: 26, dl: 2 },
-  { s: 210, t: "74%", l: "4%", c: "rgba(255,255,255,.06)", a: "lgFloat", d: 30, dl: 1 },
-];
-const ANILLOS = [
-  { s: 240, t: "8%", l: "74%", b: "rgba(255,255,255,.10)", a: "lgSpin", d: 44 },
-  { s: 150, t: "64%", l: "64%", b: "rgba(221,188,0,.18)", a: "lgSpinRev", d: 38 },
-];
-const CUADROS = [
-  { s: 92, t: "16%", l: "12%", b: "rgba(255,255,255,.12)", a: "lgSpin", d: 34 },
-  { s: 60, t: "80%", l: "46%", b: "rgba(221,188,0,.20)", a: "lgSpinRev", d: 30 },
-];
-const PUNTOS = [
-  { t: "20%", l: "30%", g: true }, { t: "34%", l: "60%", g: false }, { t: "70%", l: "22%", g: false },
-  { t: "56%", l: "38%", g: true }, { t: "42%", l: "88%", g: false }, { t: "82%", l: "70%", g: true },
-  { t: "12%", l: "50%", g: false }, { t: "88%", l: "34%", g: true },
-];
-
 const CSS = `
-.lg-wrap{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#00369C;overflow:hidden;padding:20px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
-.lg-bg{position:absolute;inset:0;overflow:hidden;z-index:0}
-.lg-shape{position:absolute;will-change:transform}
+.lg-wrap{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(rgba(255,255,255,.05) 1.5px,transparent 1.5px) 0 0/26px 26px,linear-gradient(160deg,#00369C 0%,#00276f 100%);overflow:hidden;padding:20px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
 .lg-card{position:relative;z-index:1;width:100%;max-width:400px;background:#fff;border-radius:18px;box-shadow:0 30px 60px rgba(0,0,0,.28);padding:38px 34px 24px;overflow:hidden}
 .lg-accent{position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#ddbc00,#00369C)}
 .lg-logo{display:flex;justify-content:center;margin-bottom:12px}
@@ -48,12 +26,6 @@ const CSS = `
 .lg-btn:active{transform:scale(.99)}
 .lg-btn:disabled{opacity:.7;cursor:default}
 .lg-foot{text-align:center;color:#9aa6bc;font-size:11px;margin:20px 0 0;line-height:1.5}
-@keyframes lgFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-34px)}}
-@keyframes lgFloat2{0%,100%{transform:translateY(0)}50%{transform:translateY(30px)}}
-@keyframes lgSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-@keyframes lgSpinRev{from{transform:rotate(0)}to{transform:rotate(-360deg)}}
-@keyframes lgDrift{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(36px,-26px) rotate(180deg)}100%{transform:translate(0,0) rotate(360deg)}}
-@keyframes lgTwinkle{0%,100%{opacity:.18;transform:scale(.8)}50%{opacity:.8;transform:scale(1.2)}}
 @media (max-width:480px){.lg-card{padding:30px 22px 22px}.lg-title{font-size:21px}}
 `;
 
@@ -88,22 +60,6 @@ export default function LoginPage() {
   return (
     <main className="lg-wrap">
       <style>{CSS}</style>
-
-      <div className="lg-bg" aria-hidden="true">
-        {ORBES.map((o, i) => (
-          <div key={"o" + i} className="lg-shape" style={{ width: o.s, height: o.s, top: o.t, left: o.l, borderRadius: "50%", background: `radial-gradient(circle, ${o.c}, transparent 70%)`, animation: `${o.a} ${o.d}s ease-in-out infinite`, animationDelay: `${o.dl}s` }} />
-        ))}
-        {ANILLOS.map((r, i) => (
-          <div key={"r" + i} className="lg-shape" style={{ width: r.s, height: r.s, top: r.t, left: r.l, borderRadius: "50%", border: `2px solid ${r.b}`, animation: `${r.a} ${r.d}s linear infinite` }} />
-        ))}
-        {CUADROS.map((q, i) => (
-          <div key={"q" + i} className="lg-shape" style={{ width: q.s, height: q.s, top: q.t, left: q.l, border: `2px solid ${q.b}`, borderRadius: 10, animation: `${q.a} ${q.d}s linear infinite` }} />
-        ))}
-        <div className="lg-shape" style={{ top: "24%", left: "84%", width: 0, height: 0, borderLeft: "55px solid transparent", borderRight: "55px solid transparent", borderBottom: "95px solid rgba(221,188,0,.12)", animation: "lgDrift 32s ease-in-out infinite" }} />
-        {PUNTOS.map((p, i) => (
-          <div key={"p" + i} className="lg-shape" style={{ top: p.t, left: p.l, width: 9, height: 9, borderRadius: "50%", background: p.g ? "rgba(221,188,0,.9)" : "rgba(255,255,255,.85)", animation: `lgTwinkle ${4 + (i % 4)}s ease-in-out infinite`, animationDelay: `${i * 0.4}s` }} />
-        ))}
-      </div>
 
       <div className="lg-card">
         <div className="lg-accent" />
