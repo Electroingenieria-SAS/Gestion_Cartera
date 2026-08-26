@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { pesos } from "../../lib/format";
+import { ArrowRight } from "lucide-react";
 
 // =========================================================
 //  BannerCompromisos
@@ -127,9 +128,10 @@ export default function BannerCompromisos() {
           style={{
             background: color, color: "#fff", textDecoration: "none",
             borderRadius: 9, padding: "9px 16px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap",
+            display: "inline-flex", alignItems: "center", gap: 6,
           }}
         >
-          Ver acuerdos →
+          Ver acuerdos <ArrowRight size={15} />
         </Link>
       </div>
 
