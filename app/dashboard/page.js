@@ -12,6 +12,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, LineChart, Line, CartesianGrid, Legend,
 } from "recharts";
+import { LayoutDashboard, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 
 const ORDEN = ["Vigente", "Vencido 1 a 30", "Vencido 31 a 60", "Vencido 61 a 90", "Vencido 91 >"];
 const ETI = {
@@ -172,7 +173,7 @@ export default function Dashboard() {
   } else if (estado === "vacio") {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">📊</div>
+        <div className="empty-ico"><LayoutDashboard size={30} strokeWidth={2} /></div>
         <h2>Aún no has cargado cartera</h2>
         <p>Sube tu archivo de Siesa para ver tus indicadores reales.</p>
         <Link href="/cargar" className="btn btn-primary">Subir archivo de Siesa</Link>
@@ -197,7 +198,7 @@ export default function Dashboard() {
         {numAlertas > 0 && (
           <Link href="/alertas" className="alert-banner">
             <span>Tienes <b>{numAlertas}</b> alertas que requieren atención</span>
-            <span className="alert-banner-cta">Ver alertas →</span>
+            <span className="alert-banner-cta">Ver alertas <ArrowRight size={15} style={{ verticalAlign: "-2px" }} /></span>
           </Link>
         )}
 
@@ -213,7 +214,7 @@ export default function Dashboard() {
             <div style={S.bigNum("#d23b3b")}>{millones(k.vencida)}</div>
             <div style={S.sub}>
               {deltaVencida != null
-                ? <span style={{ color: deltaVencida > 0 ? "#d23b3b" : "#15a36b", fontWeight: 700 }}>{deltaVencida > 0 ? "▲" : "▼"} {Math.abs(deltaVencida).toFixed(1).replace(".", ",")}% vs anterior</span>
+                ? <span style={{ color: deltaVencida > 0 ? "#d23b3b" : "#15a36b", fontWeight: 700 }}>{deltaVencida > 0 ? <ArrowUp size={12} style={{ verticalAlign: "-1px" }} /> : <ArrowDown size={12} style={{ verticalAlign: "-1px" }} />} {Math.abs(deltaVencida).toFixed(1).replace(".", ",")}% vs anterior</span>
                 : filtroActivo ? "filtrado" : "primera carga"
               }
             </div>
