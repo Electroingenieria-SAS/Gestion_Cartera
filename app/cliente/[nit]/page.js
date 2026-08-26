@@ -15,6 +15,10 @@ import {
   enviarAJuridico, devolverDeJuridico, urlFirmadaSoporte,
   validarSoportesJuridicos, JURIDICO_MAX_ARCHIVOS, JURIDICO_MAX_MB,
 } from "../../../lib/juridico";
+import {
+  Scale, Paperclip, Undo2, ChevronUp, ChevronDown,
+  Lightbulb, Image as ImageIcon, Pencil,
+} from "lucide-react";
 
 // Convierte la fecha cruda de Siesa (20260703) a formato legible (03/07/2026).
 function fmtFechaSiesa(v) {
@@ -342,7 +346,7 @@ export default function FichaCliente() {
           borderRadius: "var(--radio)", padding: "14px 18px", marginBottom: 18, fontSize: 14,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 600 }}>
-            <span style={{ fontSize: 20 }}>⚖️</span>
+            <Scale size={20} strokeWidth={2} style={{ flexShrink: 0 }} />
             <span>Este cliente está en <b>cobro jurídico</b>. Lo gestiona el área jurídica; salió del plan diario de cartera.</span>
           </div>
           {ultimoMovJur && (
@@ -369,7 +373,7 @@ export default function FichaCliente() {
                       borderRadius: 8, padding: "6px 10px", fontSize: 12.5, cursor: "pointer",
                     }}
                   >
-                    📎 {a.nombre_archivo}
+                    <Paperclip size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />{a.nombre_archivo}
                   </button>
                 ))}
               </div>
@@ -384,7 +388,7 @@ export default function FichaCliente() {
                 color: "#8a1f1f", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              ↩ Devolver a gestión normal
+              <Undo2 size={14} style={{ verticalAlign: "-2px", marginRight: 5 }} />Devolver a gestión normal
             </button>
           )}
         </div>
@@ -399,7 +403,7 @@ export default function FichaCliente() {
                 display: "inline-flex", alignItems: "center", gap: 8,
               }}
             >
-              ⚖️ Enviar a cobro jurídico
+              <Scale size={16} strokeWidth={2} /><span>Enviar a cobro jurídico</span>
             </button>
           </div>
         )
@@ -508,7 +512,9 @@ export default function FichaCliente() {
                         color: "var(--azul)", fontSize: 13, fontWeight: 600, padding: 0,
                       }}
                     >
-                      {verFacturas ? "▲ ocultar detalle" : "▼ ver detalle"}
+                      {verFacturas
+                        ? <><ChevronUp size={14} style={{ verticalAlign: "-2px" }} /> ocultar detalle</>
+                        : <><ChevronDown size={14} style={{ verticalAlign: "-2px" }} /> ver detalle</>}
                     </button>
                   )}
                 </b>
@@ -661,14 +667,14 @@ export default function FichaCliente() {
             onMouseEnter={(e) => e.currentTarget.style.background = "#fff3c4"}
             onMouseLeave={(e) => e.currentTarget.style.background = "#fff8da"}
           >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>💡</span>
+            <Lightbulb size={18} strokeWidth={2} style={{ flexShrink: 0, color: "#b8860b" }} />
             <div>
               <b>¿El cliente se comprometió a pagar en una fecha?</b>
               <p style={{ margin: "4px 0 0", color: "#6b5a00" }}>
                 Cambia el resultado a <b>"Compromiso de pago"</b> para registrar la fecha y el valor. Así el sistema te avisará automáticamente cuando se acerque el vencimiento.
               </p>
               <span style={{ fontSize: 12, fontWeight: 700, color: "var(--azul)", marginTop: 6, display: "inline-block" }}>
-                👆 Clic aquí para cambiar a "Compromiso de pago"
+                Clic aquí para cambiar a "Compromiso de pago"
               </span>
             </div>
           </div>
@@ -799,7 +805,9 @@ export default function FichaCliente() {
                           cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
                         }}
                       >
-                        {/\.(jpg|jpeg|png)$/i.test(h.archivo_url) ? "🖼️ Ver imagen adjunta" : "📎 Ver PDF adjunto"}
+                        {/\.(jpg|jpeg|png)$/i.test(h.archivo_url)
+                          ? <><ImageIcon size={13} /> Ver imagen adjunta</>
+                          : <><Paperclip size={13} /> Ver PDF adjunto</>}
                       </button>
                     )}
                     {/* Botón editar: solo visible para supervisor */}
@@ -812,7 +820,7 @@ export default function FichaCliente() {
                           cursor: "pointer", marginLeft: "auto",
                         }}
                       >
-                        ✏️ Editar
+                        <Pencil size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />Editar
                       </button>
                     )}
                     <p>{h.observacion}</p>
