@@ -6,6 +6,7 @@ import AppShell from "../components/AppShell";
 import { getBandejaJuridica } from "../../lib/juridico";
 import { pesos } from "../../lib/format";
 import { exportarExcelEstilizado, exportarPDF, hoyISO } from "../../lib/exportar";
+import { Scale } from "lucide-react";
 
 // Bandeja del rol jurídico: SOLO los clientes que le enviaron a cobro jurídico.
 // Es el equivalente al "plan diario" para la persona de cobranza jurídica.
@@ -78,7 +79,7 @@ export default function BandejaJuridica() {
   } else if (estado === "vacio") {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">⚖️</div>
+        <div className="empty-ico"><Scale size={30} strokeWidth={2} /></div>
         <h2>No hay clientes en cobro jurídico</h2>
         <p>Cuando cartera envíe un cliente a cobro jurídico, aparecerá aquí.</p>
       </div>
