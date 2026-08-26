@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 const MS_DIA = 86400000;
 const fmt = (v) => "$" + Math.round(Number(v) || 0).toLocaleString("es-CO");
 const fmtM = (v) => "$" + Math.round((Number(v) || 0) / 1e6).toLocaleString("es-CO") + " M";
-const pctTxt = (v) => (Number(v) || 0).toFixed(1).replace(".", ",") + "%";
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const COL_CAT = {
   "Vigente": "#15a36b",
