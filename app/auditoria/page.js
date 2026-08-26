@@ -5,6 +5,7 @@ import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
 import { pesos, num } from "../../lib/format";
+import { History, Image as ImageIcon, Paperclip, ChevronUp, ChevronDown } from "lucide-react";
 
 // Colores por resultado de gestión
 const RES_COL = {
@@ -119,7 +120,7 @@ export default function Trazabilidad() {
   } else if (registros.length === 0) {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">◔</div>
+        <div className="empty-ico"><History size={30} strokeWidth={2} /></div>
         <h2>Sin actividad registrada</h2>
         <p>Cuando el equipo cargue cartera o registre gestiones, aparecerán aquí.</p>
       </div>
@@ -189,12 +190,16 @@ export default function Trazabilidad() {
                               </Link>
                               <span className="muted" style={{ fontSize: 11 }}>NIT {r.cliente_nit}</span>
                               {r.archivo_url && (
-                                <span style={{ fontSize: 11, color: "var(--azul)", fontWeight: 600 }}>
-                                  {/\.(jpg|jpeg|png)$/i.test(r.archivo_url) ? "🖼️ con imagen" : "📎 con adjunto"}
+                                <span style={{ fontSize: 11, color: "var(--azul)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                  {/\.(jpg|jpeg|png)$/i.test(r.archivo_url)
+                                    ? <><ImageIcon size={12} /> con imagen</>
+                                    : <><Paperclip size={12} /> con adjunto</>}
                                 </span>
                               )}
-                              <span style={{ fontSize: 11, color: "var(--texto-suave)", marginLeft: "auto" }}>
-                                {abierto ? "▲ cerrar" : "▼ ver más"}
+                              <span style={{ fontSize: 11, color: "var(--texto-suave)", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                {abierto
+                                  ? <><ChevronUp size={13} /> cerrar</>
+                                  : <><ChevronDown size={13} /> ver más</>}
                               </span>
                             </div>
 
@@ -229,9 +234,12 @@ export default function Trazabilidad() {
                                       style={{
                                         background: "#eef6ff", border: "1px solid #cfe2fb", borderRadius: 8,
                                         padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "var(--azul)", cursor: "pointer",
+                                        display: "inline-flex", alignItems: "center", gap: 6,
                                       }}
                                     >
-                                      {/\.(jpg|jpeg|png)$/i.test(r.archivo_url) ? "🖼️ Ver imagen" : "📎 Ver PDF"}
+                                      {/\.(jpg|jpeg|png)$/i.test(r.archivo_url)
+                                        ? <><ImageIcon size={14} /> Ver imagen</>
+                                        : <><Paperclip size={14} /> Ver PDF</>}
                                     </button>
                                   </div>
                                 )}
