@@ -12,7 +12,7 @@ import { verificarAuth } from "../../../lib/apiAuth";
 // =========================================================
 export const dynamic = "force-dynamic";
 
-const fmt = (v) => "$" + Math.round(Number(v) || 0).toLocaleString("es-CO");
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Color de cada rango de mora (mismo que el dashboard).
 const COL_CAT = {
