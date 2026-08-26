@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase";
 import { getPerfil, esSoloLectura } from "../../lib/auth";
 import { pesos, num } from "../../lib/format";
 import { exportarExcelEstilizado, hoyISO } from "../../lib/exportar";
+import { Handshake, ChevronUp, ChevronDown } from "lucide-react";
 
 const ESTADO_COLOR = {
   Pendiente: "var(--amarillo)", Cumplido: "var(--verde)",
@@ -224,7 +225,7 @@ export default function Acuerdos() {
   } else if (acuerdos.length === 0) {
     contenido = (
       <div className="empty">
-        <div className="empty-ico">✓</div>
+        <div className="empty-ico"><Handshake size={30} strokeWidth={2} /></div>
         <h2>Aún no hay acuerdos de pago</h2>
         <p>Los acuerdos se crean al registrar un "Compromiso de pago" en la gestión de un cliente.</p>
         <Link href="/plan" className="btn btn-primary">Ir al plan diario</Link>
@@ -389,7 +390,9 @@ export default function Acuerdos() {
                                 color: "var(--azul)", fontSize: 12, fontWeight: 600, padding: "4px 2px",
                               }}
                             >
-                              {abierto === a.id ? "▲ ocultar" : "▼ trazabilidad"}
+                              {abierto === a.id
+                                ? <><ChevronUp size={13} style={{ verticalAlign: "-2px" }} /> ocultar</>
+                                : <><ChevronDown size={13} style={{ verticalAlign: "-2px" }} /> trazabilidad</>}
                             </button>
                           </div>
                         </td>
