@@ -13,7 +13,7 @@ import { verificarAuth } from "../../../lib/apiAuth";
 export const dynamic = "force-dynamic";
 
 const MS_DIA = 86400000;
-const fmt = (v) => "$" + Math.round(Number(v) || 0).toLocaleString("es-CO");
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 export async function GET(request) {
   const auth = await verificarAuth(request);
