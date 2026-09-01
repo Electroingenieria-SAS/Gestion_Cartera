@@ -6,27 +6,34 @@ import Image from "next/image";
 import { supabase } from "../../lib/supabase";
 
 const CSS = `
-.lg-wrap{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(rgba(255,255,255,.05) 1.5px,transparent 1.5px) 0 0/26px 26px,linear-gradient(160deg,#00369C 0%,#00276f 100%);overflow:hidden;padding:20px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
-.lg-card{position:relative;z-index:1;width:100%;max-width:400px;background:#fff;border-radius:18px;box-shadow:0 30px 60px rgba(0,0,0,.28);padding:38px 34px 24px;overflow:hidden}
-.lg-accent{position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#ddbc00,#00369C)}
-.lg-logo{display:flex;justify-content:center;margin-bottom:12px}
-.lg-title{text-align:center;color:#00369C;font-size:24px;font-weight:800;margin:6px 0 2px}
-.lg-sub{text-align:center;color:#6b7890;font-size:14px;margin:0 0 22px}
-.lg-form{display:flex;flex-direction:column;gap:16px}
-.lg-field{display:flex;flex-direction:column;gap:6px}
-.lg-field>span{font-size:13px;font-weight:600;color:#1f2a44}
-.lg-field input{width:100%;border:1px solid #d8deea;border-radius:10px;padding:12px 14px;font-size:15px;background:#fbfcfe;outline:none;transition:border .15s,box-shadow .15s;box-sizing:border-box}
-.lg-field input:focus{border-color:#00369C;box-shadow:0 0 0 3px rgba(0,54,156,.12)}
+.lg-wrap{min-height:100vh;display:grid;place-items:center;background:#f4f6f9;padding:32px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.lg-card{position:relative;display:grid;grid-template-columns:minmax(260px,.9fr) minmax(360px,1.1fr);width:min(940px,100%);min-height:560px;background:#fff;border:1px solid #e3e7ee;border-radius:4px;box-shadow:0 18px 45px rgba(15,27,51,.1);overflow:hidden}
+.lg-accent{position:absolute;left:0;top:0;bottom:0;width:5px;background:#ddbc00;z-index:2}
+.lg-brand{display:flex;flex-direction:column;justify-content:space-between;background:#082a62;color:#fff;padding:54px 48px 42px}
+.lg-brand-mark{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#d9b900;font-weight:700}
+.lg-brand h2{max-width:9ch;font-size:38px;line-height:1.08;letter-spacing:-.04em;margin:0}
+.lg-brand p{max-width:26ch;color:rgba(255,255,255,.68);font-size:13px;line-height:1.7;margin:0}
+.lg-content{display:flex;flex-direction:column;justify-content:center;padding:54px 72px}
+.lg-logo{display:flex;justify-content:flex-start;margin-bottom:34px}
+.lg-logo img{width:180px;height:auto}
+.lg-title{color:#10254a;font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-.03em;margin:0 0 8px}
+.lg-sub{color:#6b7890;font-size:14px;margin:0 0 32px}
+.lg-form{display:flex;flex-direction:column;gap:19px}
+.lg-field{display:flex;flex-direction:column;gap:8px}
+.lg-field>span{font-size:12px;font-weight:700;letter-spacing:.02em;color:#243957}
+.lg-field input{width:100%;border:1px solid #cfd7e3;border-radius:3px;padding:13px 14px;font-size:14px;color:#10254a;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;box-sizing:border-box}
+.lg-field input::placeholder{color:#9aa6b7}
+.lg-field input:focus{border-color:#174d9b;box-shadow:0 0 0 3px rgba(23,77,155,.11)}
 .lg-pass{position:relative}
 .lg-pass input{padding-right:44px}
-.lg-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8a97ad;padding:6px;display:flex;align-items:center}
-.lg-error{color:#d23b3b;font-size:13px;margin:0;background:#fdeaea;border:1px solid #f6c9c9;border-radius:8px;padding:9px 11px}
-.lg-btn{margin-top:4px;width:100%;background:#00369C;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s,transform .05s}
-.lg-btn:hover{background:#00276f}
-.lg-btn:active{transform:scale(.99)}
+.lg-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#7d8ba0;padding:6px;display:flex;align-items:center}
+.lg-error{color:#ad2f36;font-size:12px;margin:0;background:#fff5f5;border:1px solid #efcfd1;border-radius:3px;padding:10px 11px}
+.lg-btn{margin-top:5px;width:100%;background:#0b3679;color:#fff;border:none;border-radius:3px;padding:14px;font-size:13px;letter-spacing:.02em;font-weight:700;cursor:pointer;transition:background .15s,transform .05s}
+.lg-btn:hover{background:#082a62}
+.lg-btn:active{transform:translateY(1px)}
 .lg-btn:disabled{opacity:.7;cursor:default}
-.lg-foot{text-align:center;color:#9aa6bc;font-size:11px;margin:20px 0 0;line-height:1.5}
-@media (max-width:480px){.lg-card{padding:30px 22px 22px}.lg-title{font-size:21px}}
+.lg-foot{color:#9aa6b7;font-size:11px;margin:30px 0 0;line-height:1.5}
+@media (max-width:700px){.lg-wrap{padding:16px}.lg-card{display:block;min-height:0}.lg-brand{gap:28px;padding:34px 34px 30px}.lg-brand h2{font-size:30px}.lg-brand p{display:none}.lg-content{padding:36px 34px 34px}.lg-logo{margin-bottom:28px}.lg-title{font-size:24px}}
 `;
 
 export default function LoginPage() {
@@ -63,13 +70,19 @@ export default function LoginPage() {
 
       <div className="lg-card">
         <div className="lg-accent" />
-        <div className="lg-logo">
-          <Image src="/logo-ei.png" alt="Electroingeniería" width={180} height={57} priority />
-        </div>
-        <h1 className="lg-title">Gestión de Cartera</h1>
-        <p className="lg-sub">Electroingeniería S.A.S.</p>
+        <section className="lg-brand" aria-label="Información de la plataforma">
+          <span className="lg-brand-mark">Electroingeniería S.A.S.</span>
+          <h2>Decisiones claras para una gestión eficiente.</h2>
+          <p>Plataforma interna para el seguimiento y control de la cartera.</p>
+        </section>
+        <section className="lg-content">
+          <div className="lg-logo">
+            <Image src="/logo-ei.png" alt="Electroingeniería" width={180} height={57} priority />
+          </div>
+          <h1 className="lg-title">Gestión de Cartera</h1>
+          <p className="lg-sub">Ingresa con tus credenciales corporativas</p>
 
-        <form onSubmit={handleLogin} className="lg-form">
+          <form onSubmit={handleLogin} className="lg-form">
           <label className="lg-field">
             <span>Correo electrónico</span>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@ei.com.co" required />
@@ -94,9 +107,10 @@ export default function LoginPage() {
           <button className="lg-btn" type="submit" disabled={loading}>
             {loading ? "Ingresando…" : "Ingresar"}
           </button>
-        </form>
+          </form>
 
-        <p className="lg-foot">© 2026 Electroingeniería S.A.S. — Desarrollado por Juan Camilo Montoya</p>
+          <p className="lg-foot">© 2026 Electroingeniería S.A.S. — Desarrollado por Juan Camilo Montoya</p>
+        </section>
       </div>
     </main>
   );
