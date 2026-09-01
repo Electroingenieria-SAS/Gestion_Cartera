@@ -32,7 +32,7 @@ const ROLES = {
 // Roles "de cartera" (todo el que NO es jurídico ve el menú normal).
 const CARTERA = ["auxiliar", "supervisor", "consulta"];
 
-// Menú principal horizontal. Cada ítem define qué roles lo ven.
+// Menú principal. Cada ítem define qué roles lo ven.
 // El rol 'juridico' SOLO ve su bandeja de cobro jurídico.
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", roles: CARTERA },
@@ -48,7 +48,7 @@ const NAV = [
   { id: "auditoria", label: "Trazabilidad", icon: History, href: "/auditoria", roles: CARTERA },
 ];
 
-// Estructura común (topbar horizontal + título de página) para todas las páginas internas.
+// Estructura común (sidebar lateral + título de página) para todas las páginas internas.
 export default function AppShell({ active, titulo, subtitulo, children }) {
   const router = useRouter();
   const [cargando, setCargando] = useState(true);
@@ -102,57 +102,54 @@ export default function AppShell({ active, titulo, subtitulo, children }) {
 
   return (
     <div className="app-shell">
-      {/* === TOPBAR HORIZONTAL: logo | menú centrado | usuario === */}
-      <header className="topbar">
-        <Link href="/dashboard" className="topbar-brand" aria-label="Inicio">
-          <Image src="/simbolo-ei.png" alt="ei" width={32} height={46} priority />
-          <span>Cartera</span>
+      <aside className="sidebar">
+        <Link href="/dashboard" className="sidebar-brand" aria-label="Inicio">
+          <Image src="/simbolo-ei.png" alt="ei" width={27} height={39} priority />
+          <span><strong>Gestión</strong><small>de cartera</small></span>
         </Link>
-
-        <nav className="topnav" aria-label="Menú principal">
+        <div className="sidebar-section-label">Navegación</div>
+        <nav className="sidebar-nav" aria-label="Menú principal">
           {navVisible.map((item) => {
             const Icon = item.icon;
             return (
               <Link
                 key={item.id}
                 href={item.href}
-                className={`topnav-item ${active === item.id ? "on" : ""}`}
+                className={`sidebar-item ${active === item.id ? "on" : ""}`}
               >
-                <Icon size={18} strokeWidth={2} className="topnav-ico" />
-                <span className="topnav-label">{item.label}</span>
+                <Icon size={17} strokeWidth={2} />
+                <span>{item.label}</span>
+                {item.id === "alertas" && alertas > 0 && (
+                  <span className="sidebar-count">{alertas > 99 ? "99+" : alertas}</span>
+                )}
               </Link>
             );
           })}
         </nav>
-
-        <div className="topbar-right">
-          {!esJuridico && (
-            <Link href="/alertas" className="bell" aria-label="Alertas">
-              <Bell size={22} strokeWidth={2} />
-              {alertas > 0 && <span className="bell-count">{alertas > 99 ? "99+" : alertas}</span>}
-            </Link>
-          )}
-          <div className="user-chip">
-            <div className="avatar">{iniciales}</div>
-            <div className="user-meta">
-              <strong>{perfil.nombre}</strong>
-              <span>{ROLES[perfil.rol] || perfil.rol}</span>
-            </div>
-            <button className="logout" onClick={salir} title="Cerrar sesión">
-              <LogOut size={16} strokeWidth={2} style={{ marginRight: 4 }} />
-              Salir
-            </button>
+        <div className="sidebar-user">
+          <div className="avatar">{iniciales}</div>
+          <div className="user-meta">
+            <strong>{perfil.nombre}</strong>
+            <span>{ROLES[perfil.rol] || perfil.rol}</span>
           </div>
+          <button className="logout" onClick={salir} title="Cerrar sesión" aria-label="Cerrar sesión">
+            <LogOut size={16} strokeWidth={2} />
+          </button>
         </div>
-      </header>
+      </aside>
 
-      {/* === Cuerpo de la página === */}
       <div className="main">
         <header className="app-top">
           <div>
             <h1 className="app-title">{titulo}</h1>
             <p className="app-date">{subtitulo}</p>
           </div>
+          {!esJuridico && (
+            <Link href="/alertas" className="bell" aria-label="Alertas">
+              <Bell size={20} strokeWidth={2} />
+              {alertas > 0 && <span className="bell-count">{alertas > 99 ? "99+" : alertas}</span>}
+            </Link>
+          )}
         </header>
         <div className="app-body">{children}</div>
       </div>
