@@ -27,21 +27,21 @@ const COL = {
 const DONUT_COL = { vigente: "#15a36b", vencida: "#ddbc00", dificil: "#d23b3b" };
 
 const S = {
-  panel: { background: "#fff", border: "1px solid #e3e9f4", borderRadius: 16, padding: "20px 22px", boxShadow: "0 10px 30px rgba(0,55,138,0.06)" },
-  h3: { fontSize: 14, fontWeight: 700, color: "#0f1b33", marginBottom: 14, textTransform: "uppercase", letterSpacing: ".4px" },
-  kpiRow: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14 },
+  panel: { background: "var(--blanco)", border: "1px solid var(--borde)", borderRadius: "var(--r-lg)", padding: "var(--sp-5)", boxShadow: "var(--sh-1)" },
+  h3: { fontSize: 15, fontWeight: 700, color: "var(--texto)", marginBottom: "var(--sp-4)" },
+  kpiRow: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "var(--sp-3)" },
+  // El color es semántico y va en el número (bigNum); la tarjeta queda limpia, solo borde.
   kpiCard: (color) => ({
-    background: "#fff", border: "1px solid #e3e9f4", borderRadius: 14,
-    padding: "18px 20px", boxShadow: "0 6px 20px rgba(0,55,138,0.06)",
-    borderTop: `4px solid ${color}`,
+    background: "var(--blanco)", border: "1px solid var(--borde)", borderRadius: "var(--r-md)",
+    padding: "var(--sp-4)",
   }),
-  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 16 },
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 },
-  gridSide: { display: "grid", gridTemplateColumns: "280px 1fr", gap: 16, marginTop: 16 },
-  label: { fontSize: 11, fontWeight: 700, color: "#5b6b86", textTransform: "uppercase", letterSpacing: ".6px" },
-  bigNum: (color) => ({ fontSize: 26, fontWeight: 800, color, marginTop: 4 }),
-  sub: { fontSize: 12, color: "#5b6b86", marginTop: 4 },
-  indicador: { display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #eef2f7", fontSize: 13 },
+  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--sp-4)", marginTop: "var(--sp-4)" },
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-4)", marginTop: "var(--sp-4)" },
+  gridSide: { display: "grid", gridTemplateColumns: "280px 1fr", gap: "var(--sp-4)", marginTop: "var(--sp-4)" },
+  label: { fontSize: 12, fontWeight: 600, color: "var(--texto-suave)" },
+  bigNum: (color) => ({ fontSize: 28, fontWeight: 800, color, marginTop: "var(--sp-1)" }),
+  sub: { fontSize: 12, color: "var(--texto-suave)", marginTop: "var(--sp-1)" },
+  indicador: { display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid var(--borde)", fontSize: 13 },
 };
 
 export default function Dashboard() {
