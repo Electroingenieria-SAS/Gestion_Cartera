@@ -1,5 +1,4 @@
 import "./globals.css";
-import Footer from "./components/Footer";
 
 // Metadatos: título de la pestaña + favicon (Next.js usa app/icon.png automáticamente).
 export const metadata = {
@@ -22,7 +21,6 @@ export default function RootLayout({ children }) {
       <body>
         <div className="page">
           {children}
-          <Footer />
         </div>
       </body>
     </html>
