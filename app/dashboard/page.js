@@ -206,7 +206,7 @@ export default function Dashboard() {
         <div style={S.kpiRow}>
           <div style={S.kpiCard("var(--azul)")}>
             <div style={S.label}>Cartera Total</div>
-            <div style={S.bigNum("var(--azul)")}>{millones(k.total)}</div>
+            <div style={S.bigNum("var(--texto)")}>{millones(k.total)}</div>
             <div style={S.sub}>{num(filtrados.length)} documentos</div>
           </div>
           <div style={S.kpiCard("#d23b3b")}>
@@ -221,7 +221,7 @@ export default function Dashboard() {
           </div>
           <div style={S.kpiCard("#e8930c")}>
             <div style={S.label}>% Cartera Vencida</div>
-            <div style={S.bigNum("#e8930c")}>{pct(k.pctVencida)}</div>
+            <div style={S.bigNum("#d23b3b")}>{pct(k.pctVencida)}</div>
             <div style={S.sub}>{k.pctVencida > 40 ? "Nivel crítico" : k.pctVencida >= 20 ? "Requiere atención" : "Nivel normal"}</div>
           </div>
           <div style={S.kpiCard("#15a36b")}>
@@ -231,7 +231,7 @@ export default function Dashboard() {
           </div>
           <div style={S.kpiCard("var(--azul)")}>
             <div style={S.label}># Clientes</div>
-            <div style={S.bigNum("var(--azul)")}>{num(k.clientesTotales)}</div>
+            <div style={S.bigNum("var(--texto)")}>{num(k.clientesTotales)}</div>
             <div style={S.sub}>{num(k.clientesMora)} en mora</div>
           </div>
         </div>
