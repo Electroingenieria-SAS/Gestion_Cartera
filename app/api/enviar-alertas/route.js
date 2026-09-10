@@ -58,7 +58,7 @@ export async function GET(request) {
   for (const d of docs) {
     const k = d.nit;
     if (!cli[k]) cli[k] = { nit: k, nombre: d.nombre_cliente, dias: 0, vencido: 0 };
-    cli[k].dias = Math.max(cli[k].dias, parseInt(d.dias_vencidos) || 0);
+    if ((Number(d.saldo) || 0) > 0) cli[k].dias = Math.max(cli[k].dias, parseInt(d.dias_vencidos) || 0);
     if (d.categoria && d.categoria !== "Vigente") cli[k].vencido += Number(d.saldo) || 0;
   }
 
