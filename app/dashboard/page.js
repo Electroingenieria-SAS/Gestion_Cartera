@@ -121,7 +121,8 @@ export default function Dashboard() {
       c.total += s;
       if (d.categoria && d.categoria !== "Vigente") c.vencido += s;
       if (c.buckets[d.categoria] != null) c.buckets[d.categoria] += s;
-      c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
+      // Solo cuentan para la mora las facturas con saldo pendiente (no las ya pagadas).
+      if (s > 0) c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
     }
 
     const clientes = Object.values(cMap);
