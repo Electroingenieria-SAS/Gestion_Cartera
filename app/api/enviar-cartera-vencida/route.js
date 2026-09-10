@@ -99,6 +99,7 @@ export async function GET(request) {
       c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
       if ((d.dias_vencidos || 0) > c.dias - 1) c.peorCat = d.categoria || c.peorCat;
     }
+  }
 
   const clientes = Object.values(cli).sort((a, b) => b.vencido - a.vencido);
   const totalVencido = clientes.reduce((s, c) => s + c.vencido, 0);
