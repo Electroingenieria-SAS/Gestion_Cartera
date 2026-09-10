@@ -109,9 +109,11 @@ export async function GET(request) {
         peorCat: "Vigente",
       };
     }
-    cli[k].vencido += Number(d.saldo) || 0;
+    const s = Number(d.saldo) || 0;
+    cli[k].vencido += s;
     cli[k].facturas += 1;
-    if ((parseInt(d.dias_vencidos) || 0) > cli[k].dias) {
+    // Solo cuentan para la mora las facturas con saldo pendiente (no las ya pagadas).
+    if (s > 0 && (parseInt(d.dias_vencidos) || 0) > cli[k].dias) {
       cli[k].dias = parseInt(d.dias_vencidos) || 0;
       cli[k].peorCat = d.categoria;
     }
