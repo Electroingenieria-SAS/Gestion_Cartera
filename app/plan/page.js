@@ -57,7 +57,9 @@ export default function PlanDiario() {
         const s = Number(d.saldo) || 0;
         c.total += s;
         if (d.categoria && d.categoria !== "Vigente") c.vencido += s;
-        c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
+        // Una factura vencida pero YA PAGADA (saldo 0) no debe subir los días
+        // de mora del cliente: solo cuentan las facturas con saldo pendiente.
+        if (s > 0) c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
       }
 
       const { data: gest } = await supabase.from("gestiones").select("cliente_nit, fecha");
