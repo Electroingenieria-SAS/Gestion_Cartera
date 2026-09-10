@@ -91,11 +91,14 @@ export async function GET(request) {
       };
     }
     const c = cli[k];
-    c.vencido += Number(d.saldo) || 0;
+    const s = Number(d.saldo) || 0;
+    c.vencido += s;
     c.facturas += 1;
-    c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
-    if ((d.dias_vencidos || 0) > c.dias - 1) c.peorCat = d.categoria || c.peorCat;
-  }
+    // Solo cuentan para la mora las facturas con saldo pendiente (no las ya pagadas).
+    if (s > 0) {
+      c.dias = Math.max(c.dias, parseInt(d.dias_vencidos) || 0);
+      if ((d.dias_vencidos || 0) > c.dias - 1) c.peorCat = d.categoria || c.peorCat;
+    }
 
   const clientes = Object.values(cli).sort((a, b) => b.vencido - a.vencido);
   const totalVencido = clientes.reduce((s, c) => s + c.vencido, 0);
