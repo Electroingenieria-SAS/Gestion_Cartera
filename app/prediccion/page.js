@@ -29,7 +29,7 @@ export default function Prediccion() {
         const s = Number(d.saldo) || 0;
         cli[k].total += s;
         if (d.categoria && d.categoria !== "Vigente") cli[k].vencido += s;
-        cli[k].dias = Math.max(cli[k].dias, parseInt(d.dias_vencidos) || 0);
+        if (s > 0) cli[k].dias = Math.max(cli[k].dias, parseInt(d.dias_vencidos) || 0);
       }
 
       const { data: acu } = await supabase.from("acuerdos_pago").select("cliente_nit, estado");
