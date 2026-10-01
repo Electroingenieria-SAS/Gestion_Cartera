@@ -299,7 +299,7 @@ export default function FichaCliente() {
           return;
         }
         await enviarAJuridico({ nit, motivo: motivoJur, archivos: archivosJur });
-        setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico con sus soportes. Sale del plan diario y pasa a la bandeja de jurídico." });
+        setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico. Sale del plan diario y pasa a la bandeja de jurídico." });
       } else {
         await devolverDeJuridico({ nit, motivo: motivoJur });
         setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
@@ -435,7 +435,7 @@ export default function FichaCliente() {
 
           {modalJur === "enviar" && (
             <label className="field" style={{ marginTop: 10 }}>
-              <span>Soportes del cobro (obligatorio · máx. {JURIDICO_MAX_ARCHIVOS} · {JURIDICO_MAX_MB} MB c/u)</span>
+              <span>Soportes del cobro (opcional · máx. {JURIDICO_MAX_ARCHIVOS} · {JURIDICO_MAX_MB} MB c/u)</span>
               <input
                 type="file"
                 multiple
@@ -458,7 +458,7 @@ export default function FichaCliente() {
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={confirmarJuridico}
-              disabled={guardandoJur || (modalJur === "enviar" && archivosJur.length < 1)}
+              disabled={guardandoJur}
               style={{
                 background: "#d23b3b", color: "#fff", border: "none", borderRadius: 8,
                 padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
