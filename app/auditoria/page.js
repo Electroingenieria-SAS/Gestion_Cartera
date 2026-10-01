@@ -5,7 +5,27 @@ import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { supabase } from "../../lib/supabase";
 import { pesos, num } from "../../lib/format";
+import { exportarExcelEstilizado, hoyISO } from "../../lib/exportar";
 import { History, Image as ImageIcon, Paperclip, ChevronUp, ChevronDown } from "lucide-react";
+
+// Supabase entrega máximo 1.000 filas por consulta.
+// Esta función pide página por página hasta traer TODO el historial.
+async function traerTodo(construirConsulta) {
+  const TAM = 1000;
+  let desde = 0;
+  const todo = [];
+  while (true) {
+    const { data, error } = await construirConsulta().range(desde, desde + TAM - 1);
+    if (error) throw error;
+    todo.push(...(data || []));
+    if (!data || data.length < TAM) break;
+    desde += TAM;
+  }
+  return todo;
+}
+
+const fmtFecha = (f) => new Date(f).toLocaleDateString("es-CO", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" });
+const fmtHora = (f) => new Date(f).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" });
 
 // Colores por resultado de gestión
 const RES_COL = {
@@ -22,6 +42,88 @@ export default function Trazabilidad() {
   const [busqueda, setBusqueda] = useState("");
   const [expandido, setExpandido] = useState(null); // id del registro expandido
   const [filtroTipo, setFiltroTipo] = useState("todos"); // "todos" | "gestiones" | "sistema"
+  const [exportando, setExportando] = useState(false);
+  const [errorExport, setErrorExport] = useState(null);
+
+  // Descarga el historial COMPLETO (no solo lo que se ve en pantalla)
+  async function exportarAExcel() {
+    setExportando(true);
+    setErrorExport(null);
+    try {
+      const gest = await traerTodo(() =>
+        supabase
+          .from("gestiones")
+          .select("id, fecha, cliente_nit, tipo, resultado, observacion, archivo_url, usuario_nombre")
+          .order("fecha", { ascending: true })
+          .order("id", { ascending: true })
+      );
+      const audit = await traerTodo(() =>
+        supabase
+          .from("auditoria")
+          .select("id, fecha, usuario_nombre, accion, detalle")
+          .not("accion", "eq", "Registró gestión") // mismo criterio que la pantalla
+          .order("fecha", { ascending: true })
+          .order("id", { ascending: true })
+      );
+
+      // Nombres de clientes, en grupos de 200 NIT para no saturar la consulta
+      const nits = [...new Set(gest.map((g) => g.cliente_nit))];
+      const nombres = {};
+      for (let i = 0; i < nits.length; i += 200) {
+        const { data: cli, error } = await supabase.from("clientes").select("nit, nombre").in("nit", nits.slice(i, i + 200));
+        if (error) throw error;
+        for (const c of cli || []) nombres[c.nit] = c.nombre;
+      }
+
+      const todos = [
+        ...gest.map((g) => ({ fecha: g.fecha, esGestion: true, ...g })),
+        ...audit.map((a) => ({ fecha: a.fecha, esGestion: false, ...a })),
+      ].sort((a, b) => new Date(a.fecha) - new Date(b.fecha)); // del más antiguo al más reciente
+
+      const filas = todos.map((r, i) => ({
+        n: i + 1,
+        fecha: fmtFecha(r.fecha),
+        hora: fmtHora(r.fecha),
+        usuario: r.usuario_nombre || "—",
+        categoria: r.esGestion ? "Gestión de cliente" : "Evento del sistema",
+        tipo: r.esGestion ? r.tipo : "—",
+        resultado: r.esGestion ? r.resultado : "—",
+        cliente: r.esGestion ? (nombres[r.cliente_nit] || r.cliente_nit) : "—",
+        nit: r.esGestion ? r.cliente_nit : "—",
+        observacion: r.esGestion ? (r.observacion || "—") : "—",
+        accion: r.esGestion ? "—" : r.accion,
+        detalle: r.esGestion ? "—" : (r.detalle || "—"),
+        adjunto: r.esGestion && r.archivo_url ? (/\.(jpg|jpeg|png)$/i.test(r.archivo_url) ? "Imagen" : "PDF") : "No",
+      }));
+
+      const columnas = [
+        { header: "#",            key: "n",           width: 7,  formato: "numero" },
+        { header: "Fecha",        key: "fecha",       width: 12 },
+        { header: "Hora",         key: "hora",        width: 11 },
+        { header: "Usuario",      key: "usuario",     width: 22, bold: true },
+        { header: "Categoría",    key: "categoria",   width: 19 },
+        { header: "Tipo",         key: "tipo",        width: 18 },
+        { header: "Resultado",    key: "resultado",   width: 22 },
+        { header: "Cliente",      key: "cliente",     width: 36 },
+        { header: "NIT",          key: "nit",         width: 14 },
+        { header: "Observación",  key: "observacion", width: 50 },
+        { header: "Acción (sistema)",  key: "accion",  width: 24 },
+        { header: "Detalle (sistema)", key: "detalle", width: 40 },
+        { header: "Adjunto",      key: "adjunto",     width: 10 },
+      ];
+
+      const fechaHoy = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      await exportarExcelEstilizado(`Trazabilidad_${hoyISO()}`, filas, columnas, {
+        nombreHoja: "Trazabilidad",
+        titulo: "Trazabilidad — Electroingeniería S.A.S.",
+        subtitulo: `${fechaHoy}  ·  Historial completo  ·  ${gest.length} gestiones + ${audit.length} eventos del sistema  ·  Generado desde Gestión de Cartera`,
+      });
+    } catch (e) {
+      setErrorExport("No se pudo generar el Excel: " + (e.message || e));
+    } finally {
+      setExportando(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -135,7 +237,11 @@ export default function Trazabilidad() {
             <option value="gestiones">Gestiones de clientes ({num(conteoGest)})</option>
             <option value="sistema">Eventos del sistema ({num(conteoSist)})</option>
           </select>
+          <button className="btn-ghost-light" onClick={exportarAExcel} disabled={exportando} title="Descarga todo el historial, desde el primer registro hasta hoy">
+            {exportando ? "Generando…" : "Exportar Excel"}
+          </button>
         </div>
+        {errorExport && <div className="upload-msg error" style={{ marginBottom: 14 }}>{errorExport}</div>}
         <div className="resumen-filtro"><span><b>{num(filtrados.length)}</b> registros</span></div>
 
         <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
