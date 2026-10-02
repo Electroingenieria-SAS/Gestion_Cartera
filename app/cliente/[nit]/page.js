@@ -298,8 +298,24 @@ export default function FichaCliente() {
           setAviso({ tipo: "error", txt: val.error });
           return;
         }
-        await enviarAJuridico({ nit, motivo: motivoJur, archivos: archivosJur });
-        setAviso({ tipo: "ok", txt: "Cliente enviado a cobro jurídico. Sale del plan diario y pasa a la bandeja de jurídico." });
+        const historialId = await enviarAJuridico({ nit, motivo: motivoJur, archivos: archivosJur });
+
+        // Aviso por correo. Si falla, el envío a jurídico YA quedó guardado:
+        // solo se advierte para que se avise por otro medio.
+        let correoOk = false;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const r = await fetch("/api/notificar-juridico", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+            body: JSON.stringify({ historialId }),
+          });
+          correoOk = (await r.json())?.ok === true;
+        } catch { correoOk = false; }
+
+        setAviso(correoOk
+          ? { tipo: "ok", txt: "Cliente enviado a cobro jurídico y notificado por correo. Sale del plan diario y pasa a la bandeja de jurídico." }
+          : { tipo: "error", txt: "Cliente enviado a cobro jurídico, pero NO se pudo enviar el correo de aviso. Avisa a jurídico por otro medio." });
       } else {
         await devolverDeJuridico({ nit, motivo: motivoJur });
         setAviso({ tipo: "ok", txt: "Cliente devuelto a gestión normal de cartera." });
